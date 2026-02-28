@@ -921,83 +921,95 @@
             let currentChatWith = PUBLIC_ID;
             let allUsersCache = [];
 
-            // ---------- 将原来的初始化逻辑封装成函数，供动画结束后调用 ----------
+            // ---------- 启动应用 ----------
             async function startApp() {
-                const uidFromPath = getUserIdFromPath();
-                if (!uidFromPath) {
-                    window.location.href = getBasePath() + ADMIN_ID;
-                    return;
-                }
-
-                let user = await fetchUser(uidFromPath);
-                if (!user) {
-                    document.getElementById('errorPage').classList.remove('hidden');
-                    document.getElementById('backToAdminBtn').onclick = () => {
-                        window.location.href = getBasePath() + ADMIN_ID;
-                    };
-                    return;
-                }
-
-                if (!user.registered) {
-                    document.getElementById('regUid').innerText = uidFromPath;
-                    document.getElementById('registerModal').classList.remove('hidden');
-                    document.getElementById('registerConfirm').onclick = async () => {
-                        const name = document.getElementById('regName').value.trim();
-                        if (!name) { alert('称谓不能为空'); return; }
-                        const tag = document.getElementById('regTag').value.trim();
-                        user.name = name;
-                        user.tag = tag;
-                        user.registered = true;
-                        user.contacts = [PUBLIC_ID, ADMIN_ID];
-                        user.friends = [ADMIN_ID];
-                        user.contact_granted = [];
-                        const adminUser = await fetchUser(ADMIN_ID);
-                        if (adminUser) {
-                            if (!adminUser.friends) adminUser.friends = [];
-                            if (!adminUser.friends.includes(uidFromPath)) {
-                                adminUser.friends.push(uidFromPath);
-                                await upsertUser(adminUser);
-                            }
-                        }
-                        const success = await upsertUser(user);
-                        if (success) {
-                            currentUser = user;
-                            document.getElementById('registerModal').classList.add('hidden');
-                            document.getElementById('mainApp').classList.remove('hidden');
-                            renderMainApp();
-                            showWelcomeModal(true);
-                        } else {
-                            alert('注册失败，请重试');
-                        }
-                    };
-                } else {
-                    if (uidFromPath === ADMIN_ID) {
-                        if (sessionStorage.getItem('icw_admin_final') === 'true') {
-                            currentUser = user;
-                            document.getElementById('mainApp').classList.remove('hidden');
-                            renderMainApp();
-                            showWelcomeModal(false);
-                        } else {
-                            document.getElementById('passwordModal').classList.remove('hidden');
-                            document.getElementById('submitAdminPassword').onclick = async () => {
-                                const pwd = document.getElementById('adminPassword').value;
-                                if (pwd === ADMIN_PASSWORD) {
-                                    sessionStorage.setItem('icw_admin_final', 'true');
-                                    currentUser = user;
-                                    document.getElementById('passwordModal').classList.add('hidden');
-                                    document.getElementById('mainApp').classList.remove('hidden');
-                                    renderMainApp();
-                                    showWelcomeModal(false);
-                                } else alert('密码错误');
-                                document.getElementById('adminPassword').value = '';
-                            };
-                        }
-                    } else {
-                        currentUser = user;
-                        document.getElementById('mainApp').classList.remove('hidden');
-                        renderMainApp();
-                        showWelcomeModal(false);
+                console.log('startApp 开始执行');
+                try {
+                    const uidFromPath = getUserIdFromPath();
+                    console.log('uidFromPath:', uidFromPath);
+                    if (!uidFromPath) {
+                        const target = getBasePath() + ADMIN_ID;
+                        console.log('重定向到:', target);
+                        window.location.href = target;
+                        return;
                     }
+
+                    console.log('正在获取用户:', uidFromPath);
+                    let user = await fetchUser(uidFromPath);
+                    console.log('获取到的用户:', user);
+                    if (!user) {
+                        document.getElementById('errorPage').classList.remove('hidden');
+                        document.getElementById('backToAdminBtn').onclick = () => {
+                            window.location.href = getBasePath() + ADMIN_ID;
+                        };
+                        return;
+                    }
+
+                    if (!user.registered) {
+                        // 未注册，显示注册模态
+                        document.getElementById('regUid').innerText = uidFromPath;
+                        document.getElementById('registerModal').classList.remove('hidden');
+                        document.getElementById('registerConfirm').onclick = async () => {
+                            const name = document.getElementById('regName').value.trim();
+                            if (!name) { alert('称谓不能为空'); return; }
+                            const tag = document.getElementById('regTag').value.trim();
+                            user.name = name;
+                            user.tag = tag;
+                            user.registered = true;
+                            user.contacts = [PUBLIC_ID, ADMIN_ID];
+                            user.friends = [ADMIN_ID];
+                            user.contact_granted = [];
+                            const adminUser = await fetchUser(ADMIN_ID);
+                            if (adminUser) {
+                                if (!adminUser.friends) adminUser.friends = [];
+                                if (!adminUser.friends.includes(uidFromPath)) {
+                                    adminUser.friends.push(uidFromPath);
+                                    await upsertUser(adminUser);
+                                }
+                            }
+                            const success = await upsertUser(user);
+                            if (success) {
+                                currentUser = user;
+                                document.getElementById('registerModal').classList.add('hidden');
+                                document.getElementById('mainApp').classList.remove('hidden');
+                                await renderMainApp();
+                                showWelcomeModal(true);
+                            } else {
+                                alert('注册失败，请重试');
+                            }
+                        };
+                    } else {
+                        if (uidFromPath === ADMIN_ID) {
+                            if (sessionStorage.getItem('icw_admin_final') === 'true') {
+                                currentUser = user;
+                                document.getElementById('mainApp').classList.remove('hidden');
+                                await renderMainApp();
+                                showWelcomeModal(false);
+                            } else {
+                                document.getElementById('passwordModal').classList.remove('hidden');
+                                document.getElementById('submitAdminPassword').onclick = async () => {
+                                    const pwd = document.getElementById('adminPassword').value;
+                                    if (pwd === ADMIN_PASSWORD) {
+                                        sessionStorage.setItem('icw_admin_final', 'true');
+                                        currentUser = user;
+                                        document.getElementById('passwordModal').classList.add('hidden');
+                                        document.getElementById('mainApp').classList.remove('hidden');
+                                        await renderMainApp();
+                                        showWelcomeModal(false);
+                                    } else alert('密码错误');
+                                    document.getElementById('adminPassword').value = '';
+                                };
+                            }
+                        } else {
+                            currentUser = user;
+                            document.getElementById('mainApp').classList.remove('hidden');
+                            await renderMainApp();
+                            showWelcomeModal(false);
+                        }
+                    }
+                } catch (error) {
+                    console.error('启动应用出错:', error);
+                    alert('加载失败，请刷新重试。错误信息：' + error.message);
                 }
             }
 
@@ -1542,34 +1554,28 @@
                 }
             })();
 
-            // ---------- 扫描线动画结束后启动应用 ----------
+            // ---------- 启动流程 ----------
             const scanLine = document.getElementById('scanLine');
-            // 确保动画触发
             scanLine.style.opacity = '1';
             scanLine.style.animation = 'scan 1s ease-out forwards';
 
-            // 动画结束后启动应用
+            // 动画结束后启动
             scanLine.addEventListener('animationend', function() {
+                console.log('扫描动画结束，启动应用');
                 startApp();
-            }, { once: true }); // 只触发一次
+            }, { once: true });
 
-            // 兼容性：如果动画事件未触发（比如浏览器不支持），设置一个后备定时器
+            // 保险：1.5秒后如果还未启动，强制启动
             setTimeout(() => {
                 if (!window.appStarted) {
+                    console.log('保险定时器触发，启动应用');
                     window.appStarted = true;
                     startApp();
                 }
-            }, 1200); // 1.2秒后强制启动
+            }, 1500);
 
-            // 标记已启动，防止重复
+            // 标记已启动
             window.appStarted = false;
-            const originalStart = startApp;
-            startApp = function() {
-                if (!window.appStarted) {
-                    window.appStarted = true;
-                    originalStart();
-                }
-            };
         })();
     </script>
 </body>
