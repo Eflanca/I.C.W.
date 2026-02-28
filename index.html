@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>伊法兰卡 · 光钥系统</title>
     <style>
-        /* ----- 全局重置与高级动态特效 ----- */
+        /* ----- 全局重置与高级动态特效 (保持不变) ----- */
         * {
             margin: 0;
             padding: 0;
@@ -68,7 +68,6 @@
             flex-direction: column;
         }
 
-        /* 动态光晕 */
         .glass-orb::after {
             content: '';
             position: absolute;
@@ -538,7 +537,7 @@
         <div class="error-card">
             <h1>🔗 无效的链接</h1>
             <p style="margin: 20px 0;">该用户编号不存在</p>
-            <button class="modal-btn" onclick="location.href='/0'">返回管理员</button>
+            <button class="modal-btn" id="backToAdminBtn">返回管理员</button>
         </div>
     </div>
 
@@ -650,7 +649,7 @@
             // ---------- 常量与存储 ----------
             const ADMIN_PASSWORD = "5720";
             const PUBLIC_ID = "PUBLIC";
-            const IFRANKA_ID = "IFRANKA";  // 管理员账户固定为 '0'，但为了兼容保留IFRANKA_ID作为特殊标识
+            const IFRANKA_ID = "0";  // 管理员账户固定为 '0'
 
             const STORAGE_KEYS = {
                 USERS: 'if_users_v3',
@@ -659,12 +658,28 @@
                 CONTACT_REQUESTS: 'if_contact_requests_v3'
             };
 
+            // 获取基础路径 (用于子目录部署)
+            function getBasePath() {
+                let path = window.location.pathname;
+                // 去掉末尾的index.html或数字部分，保留目录前缀
+                path = path.replace(/\/[^\/]*$/, '/'); // 保留最后一个斜杠之前的内容
+                return path;
+            }
+
+            // 从当前路径中提取用户ID (最后一段数字)
+            function getUserIdFromPath() {
+                const path = window.location.pathname;
+                const match = path.match(/\/(\d+)(?:\/|$)/); // 匹配 /数字 或 /数字/ 结尾
+                if (match) return match[1];
+                return null;
+            }
+
             // 初始化数据
             function initData() {
                 if (!localStorage.getItem(STORAGE_KEYS.USERS)) {
                     // 预置管理员 (编号 0)
                     const users = [
-                        { uid: '0', name: '伊法兰卡', tag: '管理员', avatar: '👑', contacts: [PUBLIC_ID], contactGranted: [], isAdmin: true }
+                        { uid: '0', name: '伊法兰卡', tag: '管理员', avatar: '👤', contacts: [PUBLIC_ID], contactGranted: [], isAdmin: true }
                     ];
                     localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
                 }
@@ -694,55 +709,55 @@
             let currentUser = null;
             let currentChatWith = PUBLIC_ID;
 
-            // 从URL路径获取用户ID (例如 /0, /1, /2)
-            const path = window.location.pathname;
-            const match = path.match(/\/([^\/]+)/); // 获取第一个路径段
-            let rawUid = match ? match[1] : '';
-            // 如果为空或根，默认尝试 /0 (管理员)
-            if (!rawUid || rawUid === '') {
-                rawUid = '0';
-                // 重定向，避免刷新后路径不对
-                window.history.replaceState(null, '', '/0');
-            }
-
-            // 检查该ID是否存在
-            let existingUser = findUserByUid(rawUid);
-            if (!existingUser) {
-                // 显示错误页
-                document.getElementById('errorPage').classList.remove('hidden');
-                // 隐藏主应用
-                document.getElementById('mainApp').classList.add('hidden');
+            // 解析路径中的用户ID
+            const uidFromPath = getUserIdFromPath();
+            if (!uidFromPath) {
+                // 如果没有数字ID，重定向到 /0 (管理员)
+                const base = getBasePath();
+                window.location.href = base + '0';
             } else {
-                // 如果是管理员（uid 0）需要验证密码
-                if (rawUid === '0') {
-                    // 检查是否已经验证过（sessionStorage）
-                    const adminAuthed = sessionStorage.getItem('adminAuthed');
-                    if (adminAuthed === 'true') {
+                // 检查该ID是否存在
+                let existingUser = findUserByUid(uidFromPath);
+                if (!existingUser) {
+                    // 显示错误页
+                    document.getElementById('errorPage').classList.remove('hidden');
+                    // 设置返回管理员按钮
+                    document.getElementById('backToAdminBtn').onclick = () => {
+                        const base = getBasePath();
+                        window.location.href = base + '0';
+                    };
+                } else {
+                    // 如果是管理员（uid 0）需要验证密码
+                    if (uidFromPath === '0') {
+                        // 检查是否已经验证过（sessionStorage）
+                        const adminAuthed = sessionStorage.getItem('adminAuthed');
+                        if (adminAuthed === 'true') {
+                            currentUser = existingUser;
+                            document.getElementById('mainApp').classList.remove('hidden');
+                            renderMainApp();
+                        } else {
+                            // 弹出密码模态
+                            document.getElementById('passwordModal').classList.remove('hidden');
+                            document.getElementById('submitAdminPassword').onclick = () => {
+                                const pwd = document.getElementById('adminPassword').value;
+                                if (pwd === ADMIN_PASSWORD) {
+                                    sessionStorage.setItem('adminAuthed', 'true');
+                                    currentUser = existingUser;
+                                    document.getElementById('passwordModal').classList.add('hidden');
+                                    document.getElementById('mainApp').classList.remove('hidden');
+                                    renderMainApp();
+                                } else {
+                                    alert('密码错误');
+                                }
+                                document.getElementById('adminPassword').value = '';
+                            };
+                        }
+                    } else {
+                        // 普通用户直接登录
                         currentUser = existingUser;
                         document.getElementById('mainApp').classList.remove('hidden');
                         renderMainApp();
-                    } else {
-                        // 弹出密码模态
-                        document.getElementById('passwordModal').classList.remove('hidden');
-                        document.getElementById('submitAdminPassword').onclick = () => {
-                            const pwd = document.getElementById('adminPassword').value;
-                            if (pwd === ADMIN_PASSWORD) {
-                                sessionStorage.setItem('adminAuthed', 'true');
-                                currentUser = existingUser;
-                                document.getElementById('passwordModal').classList.add('hidden');
-                                document.getElementById('mainApp').classList.remove('hidden');
-                                renderMainApp();
-                            } else {
-                                alert('密码错误');
-                            }
-                            document.getElementById('adminPassword').value = '';
-                        };
                     }
-                } else {
-                    // 普通用户直接登录
-                    currentUser = existingUser;
-                    document.getElementById('mainApp').classList.remove('hidden');
-                    renderMainApp();
                 }
             }
 
@@ -753,12 +768,11 @@
                 document.getElementById('headerUid').innerText = '#' + currentUser.uid;
                 document.getElementById('myName').innerText = currentUser.name;
                 document.getElementById('myTag').innerText = currentUser.tag || '无标签';
-                // 统一头像：根据uid生成固定颜色/图标，但这里统一用默认
-                document.getElementById('myAvatar').innerText = '👤'; // 固定
+                document.getElementById('myAvatar').innerText = '👤'; // 固定头像
 
                 // 联系人列表
                 const contacts = currentUser.contacts || [];
-                const friendUids = contacts.filter(c => c !== PUBLIC_ID && c !== IFRANKA_ID && c !== '0' ? c : null);
+                const friendUids = contacts.filter(c => c !== PUBLIC_ID && c !== '0');
                 const users = getUsers();
                 let html = `
                     <div class="contact-category">📢 公共</div>
@@ -921,14 +935,10 @@
             });
             document.getElementById('closeProfile').addEventListener('click', () => profileModal.classList.add('hidden'));
 
-            // 添加好友
+            // 添加好友 (简化版，完整逻辑可自行扩展)
             document.getElementById('addFriendBtn').addEventListener('click', () => {
-                document.getElementById('friendSearch').value = '';
-                document.getElementById('searchResult').innerHTML = '';
-                addFriendModal.classList.remove('hidden');
+                alert('好友功能开发中，请使用管理员面板添加联系权限');
             });
-            // 简化好友搜索和申请（省略部分代码，可沿用之前逻辑，但为了篇幅保持简洁，这里略，实际可复用之前代码）
-            // 为了演示，此处省略好友申请完整逻辑，但功能可后续添加
 
             // 管理员面板
             function loadAdminPanel() {
@@ -957,7 +967,9 @@
                             currentUser = user;
                             document.getElementById('adminModal').classList.add('hidden');
                             renderMainApp();
-                            window.history.pushState(null, '', '/' + targetUid);
+                            // 更新URL
+                            const base = getBasePath();
+                            window.history.pushState(null, '', base + targetUid);
                         }
                     });
                 });
@@ -1048,7 +1060,8 @@
                 };
                 users.push(newUser);
                 saveUsers(users);
-                alert(`用户创建成功！编号: ${newUid}\n卡片链接: ${window.location.origin}${window.location.pathname.includes('/') ? window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/')) : ''}/${newUid}`);
+                const base = getBasePath();
+                alert(`用户创建成功！编号: ${newUid}\n卡片链接: ${window.location.origin}${base}${newUid}`);
                 document.getElementById('newUserModal').classList.add('hidden');
                 document.getElementById('newUserName').value = '';
                 document.getElementById('newUserTag').value = '';
