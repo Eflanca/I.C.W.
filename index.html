@@ -551,6 +551,19 @@
         </div>
     </div>
 
+    <!-- 首次注册模态（新用户使用） -->
+    <div id="registerModal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <h2>📇 首次使用</h2>
+            <p>UID: <span id="regUid"></span></p>
+            <input type="text" id="regName" class="modal-input" placeholder="输入你的称谓" maxlength="20">
+            <input type="text" id="regTag" class="modal-input" placeholder="标签 (可选)" maxlength="30">
+            <div class="modal-buttons">
+                <button class="modal-btn" id="registerConfirm">完成注册</button>
+            </div>
+        </div>
+    </div>
+
     <!-- 个人信息编辑模态 -->
     <div id="profileModal" class="modal-overlay hidden">
         <div class="modal-card">
@@ -570,7 +583,7 @@
         <div class="modal-card" style="max-width:650px;">
             <h2>⚙ 管理控制台</h2>
             <div style="margin:20px 0;">
-                <button class="modal-btn" id="createUserBtn">➕ 新增用户</button>
+                <button class="modal-btn" id="createUserBtn">➕ 新增用户（仅生成编号）</button>
             </div>
             <div style="max-height:300px; overflow-y:auto; background: rgba(0,0,0,0.2); border-radius: 30px; padding: 15px;">
                 <h3>所有用户</h3>
@@ -586,15 +599,13 @@
         </div>
     </div>
 
-    <!-- 新增用户模态 -->
-    <div id="newUserModal" class="modal-overlay hidden">
+    <!-- 新增用户模态（仅显示生成结果） -->
+    <div id="newUserResultModal" class="modal-overlay hidden">
         <div class="modal-card">
-            <h2>新建用户</h2>
-            <input type="text" id="newUserName" class="modal-input" placeholder="称谓">
-            <input type="text" id="newUserTag" class="modal-input" placeholder="标签 (可选)">
+            <h2>✅ 用户编号已生成</h2>
+            <p id="newUserResult" style="font-size:1.2rem; margin:20px 0;"></p>
             <div class="modal-buttons">
-                <button class="modal-btn" id="confirmNewUser">生成编号</button>
-                <button class="modal-btn secondary" id="cancelNewUser">取消</button>
+                <button class="modal-btn" id="closeNewUserResult">确定</button>
             </div>
         </div>
     </div>
@@ -641,7 +652,7 @@
             const ADMIN_ID = "0";
 
             const STORAGE_KEYS = {
-                USERS: 'icw_users_final',
+                USERS: 'icw_users_final_v2',  // 版本更新，避免冲突
                 MESSAGES: 'icw_messages_final',
                 FRIEND_REQUESTS: 'icw_friend_requests_final',
                 CONTACT_REQUESTS: 'icw_contact_requests_final'
@@ -668,8 +679,9 @@
 
             // ---------- 初始化存储 ----------
             if (!localStorage.getItem(STORAGE_KEYS.USERS)) {
+                // 预置管理员（已注册）
                 localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify([
-                    { uid: ADMIN_ID, name: '伊法兰卡', tag: '管理员', avatar: '👤', contacts: [PUBLIC_ID], contactGranted: [], friends: [], isAdmin: true }
+                    { uid: ADMIN_ID, name: '伊法兰卡', tag: '管理员', avatar: '👤', contacts: [PUBLIC_ID], contactGranted: [], friends: [], isAdmin: true, registered: true }
                 ]));
             }
             if (!localStorage.getItem(STORAGE_KEYS.MESSAGES)) localStorage.setItem(STORAGE_KEYS.MESSAGES, '{}');
@@ -696,6 +708,7 @@
             // ---------- 全局变量 ----------
             let currentUser = null;
             let currentChatWith = PUBLIC_ID;
+            let pendingUidForRegister = null; // 用于注册流程
 
             // ---------- 路由处理 ----------
             const uidFromPath = getUserIdFromPath();
@@ -704,36 +717,73 @@
             } else {
                 let user = findUserByUid(uidFromPath);
                 if (!user) {
+                    // 用户不存在，显示错误页
                     document.getElementById('errorPage').classList.remove('hidden');
                     document.getElementById('backToAdminBtn').onclick = () => {
                         window.location.href = getBasePath() + ADMIN_ID;
                     };
-                } else if (uidFromPath === ADMIN_ID) {
-                    if (sessionStorage.getItem('icw_admin_final') === 'true') {
-                        currentUser = user;
-                        document.getElementById('mainApp').classList.remove('hidden');
-                        renderMainApp();
-                        showWelcomeModal(); // 显示欢迎弹窗
-                    } else {
-                        document.getElementById('passwordModal').classList.remove('hidden');
-                        document.getElementById('submitAdminPassword').onclick = () => {
-                            const pwd = document.getElementById('adminPassword').value;
-                            if (pwd === ADMIN_PASSWORD) {
-                                sessionStorage.setItem('icw_admin_final', 'true');
-                                currentUser = user;
-                                document.getElementById('passwordModal').classList.add('hidden');
+                } else {
+                    // 用户存在，检查是否已注册
+                    if (!user.registered) {
+                        // 未注册，弹出注册模态框
+                        pendingUidForRegister = uidFromPath;
+                        document.getElementById('regUid').innerText = uidFromPath;
+                        document.getElementById('registerModal').classList.remove('hidden');
+                        // 注册确认按钮
+                        document.getElementById('registerConfirm').onclick = () => {
+                            const name = document.getElementById('regName').value.trim();
+                            if (!name) { alert('称谓不能为空'); return; }
+                            const tag = document.getElementById('regTag').value.trim();
+                            // 更新用户信息
+                            const users = getUsers();
+                            const idx = users.findIndex(u => u.uid === uidFromPath);
+                            if (idx !== -1) {
+                                users[idx].name = name;
+                                users[idx].tag = tag;
+                                users[idx].registered = true;
+                                users[idx].contacts = [PUBLIC_ID, ADMIN_ID]; // 默认联系人
+                                users[idx].friends = [];
+                                users[idx].contactGranted = [];
+                                saveUsers(users);
+                                currentUser = users[idx];
+                                document.getElementById('registerModal').classList.add('hidden');
                                 document.getElementById('mainApp').classList.remove('hidden');
                                 renderMainApp();
-                                showWelcomeModal(); // 显示欢迎弹窗
-                            } else alert('密码错误');
-                            document.getElementById('adminPassword').value = '';
+                                showWelcomeModal(); // 欢迎弹窗
+                            } else {
+                                alert('注册失败，请重试');
+                            }
                         };
+                    } else {
+                        // 已注册，正常登录流程
+                        if (uidFromPath === ADMIN_ID) {
+                            if (sessionStorage.getItem('icw_admin_final') === 'true') {
+                                currentUser = user;
+                                document.getElementById('mainApp').classList.remove('hidden');
+                                renderMainApp();
+                                showWelcomeModal();
+                            } else {
+                                document.getElementById('passwordModal').classList.remove('hidden');
+                                document.getElementById('submitAdminPassword').onclick = () => {
+                                    const pwd = document.getElementById('adminPassword').value;
+                                    if (pwd === ADMIN_PASSWORD) {
+                                        sessionStorage.setItem('icw_admin_final', 'true');
+                                        currentUser = user;
+                                        document.getElementById('passwordModal').classList.add('hidden');
+                                        document.getElementById('mainApp').classList.remove('hidden');
+                                        renderMainApp();
+                                        showWelcomeModal();
+                                    } else alert('密码错误');
+                                    document.getElementById('adminPassword').value = '';
+                                };
+                            }
+                        } else {
+                            currentUser = user;
+                            document.getElementById('mainApp').classList.remove('hidden');
+                            renderMainApp();
+                            showWelcomeModal();
+                        }
                     }
-                } else {
-                    currentUser = user;
-                    document.getElementById('mainApp').classList.remove('hidden');
-                    renderMainApp();
-                    showWelcomeModal(); // 显示欢迎弹窗
                 }
             }
 
@@ -749,7 +799,7 @@
                 };
             }
 
-            // ---------- 渲染主界面 ----------
+            // ---------- 渲染主界面（与之前相同）----------
             function renderMainApp() {
                 if (!currentUser) return;
                 document.getElementById('headerName').innerText = currentUser.name;
@@ -810,7 +860,6 @@
 
             function switchChat(chatId) {
                 currentChatWith = chatId;
-                // 重新渲染联系人高亮，但不需要完全重新渲染，只需更新active类
                 document.querySelectorAll('.contact-item').forEach(el => {
                     if (el.dataset.chatid === chatId) {
                         el.classList.add('active');
@@ -876,7 +925,7 @@
                 }
             }
 
-            // ---------- 好友系统核心 ----------
+            // ---------- 好友系统核心（与之前相同）----------
             function requestContact() {
                 const reqs = JSON.parse(localStorage.getItem(STORAGE_KEYS.CONTACT_REQUESTS)) || [];
                 if (!reqs.find(r => r.from === currentUser.uid)) {
@@ -896,7 +945,7 @@
             document.getElementById('friendSearchInput').addEventListener('input', (e) => {
                 const query = e.target.value.trim();
                 if (!query) { document.getElementById('friendSearchResults').innerHTML = ''; return; }
-                const users = getUsers().filter(u => u.uid !== currentUser.uid && u.uid !== ADMIN_ID && u.uid !== PUBLIC_ID);
+                const users = getUsers().filter(u => u.uid !== currentUser.uid && u.uid !== ADMIN_ID && u.uid !== PUBLIC_ID && u.registered === true); // 只搜索已注册用户
                 const results = users.filter(u => u.uid.includes(query) || (u.name && u.name.includes(query)));
                 let html = '';
                 results.forEach(u => {
@@ -1043,23 +1092,24 @@
                 let html = '';
                 users.forEach(u => {
                     if (u.uid !== ADMIN_ID) {
+                        const status = u.registered ? '已注册' : '未注册';
                         html += `<div style="display:flex; justify-content:space-between; margin:10px 0;">
-                            <span>${u.name} (${u.uid})</span>
+                            <span>${u.name || '（未设置）'} (${u.uid}) [${status}]</span>
                             <div>
-                                <button class="action-btn" data-login="${u.uid}">登录</button>
+                                <button class="action-btn" data-login="${u.uid}" ${!u.registered ? 'disabled' : ''}>登录</button>
                                 <button class="action-btn" data-delete="${u.uid}">注销</button>
-                                <button class="action-btn" data-grant="${u.uid}">授予联系</button>
+                                <button class="action-btn" data-grant="${u.uid}" ${!u.registered ? 'disabled' : ''}>授予联系</button>
                             </div>
                         </div>`;
                     }
                 });
                 document.getElementById('userListAdmin').innerHTML = html || '暂无其他用户';
 
-                // 登录其他账号
+                // 登录其他账号（仅已注册）
                 document.querySelectorAll('[data-login]').forEach(btn => {
                     btn.addEventListener('click', (e) => {
                         const target = findUserByUid(e.target.dataset.login);
-                        if (target) {
+                        if (target && target.registered) {
                             currentUser = target;
                             document.getElementById('adminModal').classList.add('hidden');
                             window.history.pushState(null, '', getBasePath() + target.uid);
@@ -1077,12 +1127,12 @@
                         }
                     });
                 });
-                // 授予联系权限
+                // 授予联系权限（仅已注册）
                 document.querySelectorAll('[data-grant]').forEach(btn => {
                     btn.addEventListener('click', (e) => {
                         const targetUid = e.target.dataset.grant;
                         const user = findUserByUid(targetUid);
-                        if (user) {
+                        if (user && user.registered) {
                             if (!user.contactGranted) user.contactGranted = [];
                             if (!user.contactGranted.includes(ADMIN_ID)) {
                                 user.contactGranted.push(ADMIN_ID);
@@ -1111,7 +1161,7 @@
                         const req = reqs[idx];
                         if (req) {
                             const user = findUserByUid(req.from);
-                            if (user) {
+                            if (user && user.registered) {
                                 if (!user.contactGranted) user.contactGranted = [];
                                 if (!user.contactGranted.includes(ADMIN_ID)) {
                                     user.contactGranted.push(ADMIN_ID);
@@ -1129,29 +1179,34 @@
                 });
             }
 
+            // 新增用户：只生成编号，不设置称谓
             document.getElementById('createUserBtn').addEventListener('click', () => {
-                document.getElementById('newUserModal').classList.remove('hidden');
-            });
-            document.getElementById('confirmNewUser').addEventListener('click', () => {
-                const name = document.getElementById('newUserName').value.trim();
-                if (!name) return alert('请输入称谓');
-                const tag = document.getElementById('newUserTag').value.trim();
                 const users = getUsers();
                 let maxId = 0;
                 users.forEach(u => { if (!isNaN(u.uid) && parseInt(u.uid) > maxId) maxId = parseInt(u.uid); });
                 const newUid = (maxId + 1).toString();
+                // 创建未注册用户
                 users.push({
-                    uid: newUid, name, tag, avatar: '👤',
-                    contacts: [PUBLIC_ID, ADMIN_ID], contactGranted: [], friends: [], isAdmin: false
+                    uid: newUid,
+                    name: '',  // 空称谓
+                    tag: '',
+                    avatar: '👤',
+                    contacts: [],  // 注册后再添加默认联系人
+                    contactGranted: [],
+                    friends: [],
+                    isAdmin: false,
+                    registered: false
                 });
                 saveUsers(users);
-                alert(`用户创建成功！编号: ${newUid}\n链接: ${window.location.origin}${getBasePath()}${newUid}`);
-                document.getElementById('newUserModal').classList.add('hidden');
-                document.getElementById('newUserName').value = '';
-                document.getElementById('newUserTag').value = '';
-                loadAdminPanel();
+                const link = `${window.location.origin}${getBasePath()}${newUid}`;
+                document.getElementById('newUserResult').innerText = `编号: ${newUid}\n链接: ${link}`;
+                document.getElementById('newUserResultModal').classList.remove('hidden');
             });
-            document.getElementById('cancelNewUser').addEventListener('click', () => document.getElementById('newUserModal').classList.add('hidden'));
+
+            document.getElementById('closeNewUserResult').addEventListener('click', () => {
+                document.getElementById('newUserResultModal').classList.add('hidden');
+            });
+
             document.getElementById('adminClose').addEventListener('click', () => document.getElementById('adminModal').classList.add('hidden'));
 
             // 粒子背景
