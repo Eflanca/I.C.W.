@@ -592,7 +592,7 @@
     </div>
 
     <script>
-        (function() {
+    (function() {
             // ---------- 常量 ----------
             const ADMIN_PASSWORD = "5720";
             const PUBLIC_ID = "PUBLIC";
@@ -605,7 +605,7 @@
                 CONTACT_REQUESTS: 'icw_contact_requests_final'
             };
 
-            // ---------- 智能基础路径检测 ----------
+            // ---------- 基础路径检测（自动适配子目录） ----------
             function getBasePath() {
                 const path = window.location.pathname;
                 // 匹配最后一个数字之前的部分作为基础路径（例如 /I.C.W./ 或 /l.c.w./）
@@ -617,19 +617,11 @@
                 return path.substring(0, path.lastIndexOf('/') + 1);
             }
 
-            // 从路径提取用户ID
-            function getUserIdFromHash() {
-                const hash = window.location.hash; // 格式如 "#/0"
-                const match = hash.match(/#\/(\d+)/);
+            // ---------- 从路径提取用户ID ----------
+            function getUserIdFromPath() {
+                const path = window.location.pathname;
+                const match = path.match(/\/(\d+)(?:\/|$)/);
                 return match ? match[1] : null;
-            }
-            
-            // 路由处理改为：
-            const uidFromHash = getUserIdFromHash();
-            if (!uidFromHash) {
-                window.location.href = getBasePath() + '#/0';
-            } else {
-                // 其余逻辑不变，使用 uidFromHash
             }
 
             // ---------- 初始化存储 ----------
