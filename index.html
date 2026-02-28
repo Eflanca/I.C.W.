@@ -607,12 +607,13 @@
 
             // ---------- 智能基础路径检测 ----------
             function getBasePath() {
-                let path = window.location.pathname;
-                // 如果路径中包含 /I.C.W./，则以此为基准
-                if (path.includes('/I.C.W./')) {
-                    return path.substring(0, path.indexOf('/I.C.W./') + '/I.C.W./'.length);
+                const path = window.location.pathname;
+                // 匹配最后一个数字之前的部分作为基础路径（例如 /I.C.W./ 或 /l.c.w./）
+                const match = path.match(/^(.*?)(\d+)(?:\/|$)/);
+                if (match) {
+                    return match[1]; // 返回数字之前的部分，包含结尾的斜杠
                 }
-                // 否则认为是根目录部署，取到最后一个 / 之前（但保留 /）
+                // 如果没有数字，则回退到当前目录（一般不会发生）
                 return path.substring(0, path.lastIndexOf('/') + 1);
             }
 
@@ -1106,3 +1107,4 @@
     </script>
 </body>
 </html>
+
