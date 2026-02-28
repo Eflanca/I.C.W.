@@ -238,9 +238,11 @@
             align-items: center;
             justify-content: center;
             font-size: 1.4rem;
+            cursor: pointer; /* 点击头像可查看信息 */
         }
         .contact-info {
             flex: 1;
+            cursor: pointer;
         }
         .contact-name {
             font-weight: 500;
@@ -251,13 +253,6 @@
         .contact-tag {
             font-size: 0.65rem;
             color: #86a9c9;
-        }
-        .request-indicator {
-            width: 10px;
-            height: 10px;
-            background: #ff4d4d;
-            border-radius: 50%;
-            margin-left: auto;
         }
 
         /* 聊天区 */
@@ -473,7 +468,7 @@
             border-bottom: 1px solid #2b5580;
         }
 
-        /* 欢迎弹窗自定义 */
+        /* 欢迎弹窗 */
         .welcome-modal .modal-card {
             text-align: center;
         }
@@ -521,6 +516,10 @@
                     </div>
                 </div>
                 <div class="contact-list" id="contactList"></div>
+                <!-- 管理按钮移到这里（仅管理员可见） -->
+                <div style="padding: 0 16px 16px 0;" id="adminButtonContainer">
+                    <!-- 动态插入 -->
+                </div>
                 <div style="padding: 0 16px 16px 0;">
                     <button class="action-btn" style="width:100%;" id="openFriendSearchBtn">+ 添加好友</button>
                 </div>
@@ -551,7 +550,7 @@
         </div>
     </div>
 
-    <!-- 首次注册模态（新用户使用） -->
+    <!-- 首次注册模态 -->
     <div id="registerModal" class="modal-overlay hidden">
         <div class="modal-card">
             <h2>📇 首次使用</h2>
@@ -574,6 +573,19 @@
             <div class="modal-buttons">
                 <button class="modal-btn" id="saveProfile">保存</button>
                 <button class="modal-btn secondary" id="closeProfile">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 查看联系人信息模态 -->
+    <div id="contactInfoModal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <h2>联系人信息</h2>
+            <p>称谓: <span id="contactName"></span></p>
+            <p>标签: <span id="contactTag"></span></p>
+            <p>UID: <span id="contactUid"></span></p>
+            <div class="modal-buttons">
+                <button class="modal-btn secondary" id="closeContactInfo">关闭</button>
             </div>
         </div>
     </div>
@@ -633,7 +645,7 @@
         </div>
     </div>
 
-    <!-- 欢迎弹窗模态 -->
+    <!-- 欢迎弹窗 -->
     <div id="welcomeModal" class="modal-overlay hidden welcome-modal">
         <div class="modal-card">
             <h2>👋 欢迎</h2>
@@ -652,8 +664,8 @@
             const ADMIN_ID = "0";
 
             const STORAGE_KEYS = {
-                USERS: 'icw_users_final_v2',
-                MESSAGES: 'icw_messages_final',
+                USERS: 'icw_users_final_v3',
+                MESSAGES: 'icw_messages_final_v3',
                 FRIEND_REQUESTS: 'icw_friend_requests_final',
                 CONTACT_REQUESTS: 'icw_contact_requests_final'
             };
@@ -662,17 +674,19 @@
             function getBasePath() {
                 const path = window.location.pathname;
                 const match = path.match(/^(.*?)(\d+)(?:\/|$)/);
-                if (match) {
-                    return match[1];
-                }
+                if (match) return match[1];
                 return path.substring(0, path.lastIndexOf('/') + 1);
             }
 
-            // ---------- 从路径提取用户ID ----------
             function getUserIdFromPath() {
                 const path = window.location.pathname;
                 const match = path.match(/\/(\d+)(?:\/|$)/);
                 return match ? match[1] : null;
+            }
+
+            // ---------- 生成私聊 chatId (排序后组合) ----------
+            function getPrivateChatId(uid1, uid2) {
+                return [uid1, uid2].sort().join('_');
             }
 
             // ---------- 初始化存储 ----------
@@ -689,7 +703,6 @@
             const getUsers = () => JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS)) || [];
             const saveUsers = (users) => localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
             const findUserByUid = (uid) => getUsers().find(u => u.uid === uid);
-            const findUserByName = (name) => getUsers().find(u => u.name === name);
 
             const getFriendRequests = () => JSON.parse(localStorage.getItem(STORAGE_KEYS.FRIEND_REQUESTS)) || [];
             const saveFriendRequests = (reqs) => localStorage.setItem(STORAGE_KEYS.FRIEND_REQUESTS, JSON.stringify(reqs));
@@ -705,9 +718,8 @@
             // ---------- 全局变量 ----------
             let currentUser = null;
             let currentChatWith = PUBLIC_ID;
-            let pendingUidForRegister = null;
 
-            // ---------- 页面加载时触发扫描线动画（只一次）----------
+            // ---------- 页面加载时触发扫描线 ----------
             setTimeout(() => {
                 const scanLine = document.getElementById('scanLine');
                 if (scanLine) {
@@ -729,8 +741,7 @@
                     };
                 } else {
                     if (!user.registered) {
-                        // 未注册，弹出注册模态框
-                        pendingUidForRegister = uidFromPath;
+                        // 未注册
                         document.getElementById('regUid').innerText = uidFromPath;
                         document.getElementById('registerModal').classList.remove('hidden');
                         document.getElementById('registerConfirm').onclick = () => {
@@ -751,9 +762,9 @@
                                 document.getElementById('registerModal').classList.add('hidden');
                                 document.getElementById('mainApp').classList.remove('hidden');
                                 renderMainApp();
-                                showWelcomeModal(true); // 首次注册
+                                showWelcomeModal(true);
                             } else {
-                                alert('注册失败，请重试');
+                                alert('注册失败');
                             }
                         };
                     } else {
@@ -762,7 +773,7 @@
                                 currentUser = user;
                                 document.getElementById('mainApp').classList.remove('hidden');
                                 renderMainApp();
-                                showWelcomeModal(false); // 已注册登录
+                                showWelcomeModal(false);
                             } else {
                                 document.getElementById('passwordModal').classList.remove('hidden');
                                 document.getElementById('submitAdminPassword').onclick = () => {
@@ -792,12 +803,7 @@
             function showWelcomeModal(isNewUser) {
                 if (!currentUser) return;
                 const firstName = currentUser.name.charAt(0);
-                let message;
-                if (isNewUser) {
-                    message = `欢迎您的加入，${firstName}博士`;
-                } else {
-                    message = `访问请求已收到，欢迎，${firstName}博士`;
-                }
+                const message = isNewUser ? `欢迎您的加入，${firstName}博士` : `访问请求已收到，欢迎，${firstName}博士`;
                 document.getElementById('welcomeMessage').innerText = message;
                 document.getElementById('welcomeModal').classList.remove('hidden');
                 document.getElementById('closeWelcome').onclick = () => {
@@ -816,32 +822,37 @@
 
                 const pendingCount = getFriendRequests().filter(r => r.to === currentUser.uid && r.status === 'pending').length;
                 const badge = document.getElementById('friendRequestBadge');
-                if (pendingCount > 0) {
-                    badge.classList.remove('hidden');
-                    badge.innerText = pendingCount;
-                } else {
-                    badge.classList.add('hidden');
-                }
+                badge.classList.toggle('hidden', pendingCount === 0);
+                if (pendingCount > 0) badge.innerText = pendingCount;
 
+                // 构建联系人列表
                 const users = getUsers();
                 const friends = currentUser.friends || [];
                 let html = `
                     <div class="contact-category">📢 公共</div>
-                    <div class="contact-item ${currentChatWith === PUBLIC_ID ? 'active' : ''}" data-chatid="${PUBLIC_ID}">
-                        <div class="contact-avatar">🌐</div><div class="contact-info"><div class="contact-name">公屏</div></div>
-                    </div>
-                    <div class="contact-category">🔷 伊法兰卡</div>
-                    <div class="contact-item ${currentChatWith === ADMIN_ID ? 'active' : ''}" data-chatid="${ADMIN_ID}">
-                        <div class="contact-avatar">👑</div><div class="contact-info"><div class="contact-name">伊法兰卡</div></div>
+                    <div class="contact-item ${currentChatWith === PUBLIC_ID ? 'active' : ''}" data-chatid="${PUBLIC_ID}" data-type="public">
+                        <div class="contact-avatar">🌐</div>
+                        <div class="contact-info"><div class="contact-name">公屏</div></div>
                     </div>
                 `;
+
+                // 管理员不显示伊法兰卡自身，普通用户显示
+                if (currentUser.uid !== ADMIN_ID) {
+                    html += `
+                        <div class="contact-category">🔷 伊法兰卡</div>
+                        <div class="contact-item ${currentChatWith === ADMIN_ID ? 'active' : ''}" data-chatid="${ADMIN_ID}" data-type="admin">
+                            <div class="contact-avatar">👑</div>
+                            <div class="contact-info"><div class="contact-name">伊法兰卡</div></div>
+                        </div>
+                    `;
+                }
 
                 if (friends.length > 0) {
                     html += `<div class="contact-category">👥 好友</div>`;
                     friends.forEach(fuid => {
                         const friend = users.find(u => u.uid === fuid);
                         if (friend) {
-                            html += `<div class="contact-item ${currentChatWith === fuid ? 'active' : ''}" data-chatid="${fuid}">
+                            html += `<div class="contact-item ${currentChatWith === fuid ? 'active' : ''}" data-chatid="${fuid}" data-type="friend">
                                 <div class="contact-avatar">👤</div>
                                 <div class="contact-info">
                                     <div class="contact-name">${friend.name}</div>
@@ -853,23 +864,72 @@
                 }
 
                 document.getElementById('contactList').innerHTML = html;
+
+                // 为每个联系人绑定点击事件（聊天切换）
                 document.querySelectorAll('.contact-item').forEach(el => {
-                    el.addEventListener('click', () => switchChat(el.dataset.chatid));
+                    el.addEventListener('click', (e) => {
+                        // 如果点击的是头像或信息区域，阻止冒泡避免触发两次
+                        const chatId = el.dataset.chatid;
+                        if (chatId) switchChat(chatId);
+                    });
                 });
 
+                // 为每个联系人的头像和信息区域绑定查看信息事件
+                document.querySelectorAll('.contact-item .contact-avatar, .contact-item .contact-info').forEach(el => {
+                    el.addEventListener('click', (e) => {
+                        e.stopPropagation(); // 阻止触发父级的聊天切换
+                        const contactItem = el.closest('.contact-item');
+                        const type = contactItem.dataset.type;
+                        const chatId = contactItem.dataset.chatid;
+                        if (type === 'public') {
+                            showContactInfo('公屏', '公共聊天室', PUBLIC_ID);
+                        } else if (type === 'admin') {
+                            const admin = findUserByUid(ADMIN_ID);
+                            showContactInfo(admin.name, admin.tag || '管理员', admin.uid);
+                        } else if (type === 'friend') {
+                            const friend = findUserByUid(chatId);
+                            if (friend) showContactInfo(friend.name, friend.tag || '无', friend.uid);
+                        }
+                    });
+                });
+
+                // 管理按钮（仅管理员可见）
+                const adminBtnContainer = document.getElementById('adminButtonContainer');
+                if (currentUser.isAdmin) {
+                    adminBtnContainer.innerHTML = `<button class="action-btn" style="width:100%;" id="adminPanelBtn">⚙ 管理控制台</button>`;
+                    document.getElementById('adminPanelBtn').addEventListener('click', () => {
+                        loadAdminPanel();
+                        document.getElementById('adminModal').classList.remove('hidden');
+                    });
+                } else {
+                    adminBtnContainer.innerHTML = '';
+                }
+
                 if (!currentChatWith) switchChat(PUBLIC_ID);
-                else switchChat(currentChatWith);
-                updateChatHeader(currentChatWith);
+                else {
+                    // 确保当前聊天对象仍然存在（比如好友被删除）
+                    if (currentChatWith !== PUBLIC_ID && currentChatWith !== ADMIN_ID && !(currentUser.friends || []).includes(currentChatWith)) {
+                        currentChatWith = PUBLIC_ID;
+                    }
+                    switchChat(currentChatWith);
+                }
+            }
+
+            // 显示联系人信息
+            function showContactInfo(name, tag, uid) {
+                document.getElementById('contactName').innerText = name;
+                document.getElementById('contactTag').innerText = tag;
+                document.getElementById('contactUid').innerText = uid;
+                document.getElementById('contactInfoModal').classList.remove('hidden');
+                document.getElementById('closeContactInfo').onclick = () => {
+                    document.getElementById('contactInfoModal').classList.add('hidden');
+                };
             }
 
             function switchChat(chatId) {
                 currentChatWith = chatId;
                 document.querySelectorAll('.contact-item').forEach(el => {
-                    if (el.dataset.chatid === chatId) {
-                        el.classList.add('active');
-                    } else {
-                        el.classList.remove('active');
-                    }
+                    el.classList.toggle('active', el.dataset.chatid === chatId);
                 });
                 loadMessages(chatId);
                 updateChatHeader(chatId);
@@ -905,19 +965,20 @@
                     title.innerText = '公屏';
                 } else if (chatId === ADMIN_ID) {
                     title.innerText = '伊法兰卡';
-                    if (!(currentUser.contactGranted || []).includes(ADMIN_ID)) {
-                        addActionButton('📞 申请联系', requestContact);
-                    } else {
-                        addActionButton('📞 拨打电话', () => window.location.href = 'tel:+8615986785788');
-                        addActionButton('💬 QQ', () => window.open('https://qm.qq.com/q/JObrZqjBqS', '_blank'));
-                    }
-                    if (currentUser.isAdmin) {
-                        addActionButton('⚙ 管理', () => { loadAdminPanel(); document.getElementById('adminModal').classList.remove('hidden'); });
+                    // 只有非管理员才能看到申请联系等按钮
+                    if (currentUser.uid !== ADMIN_ID) {
+                        if (!(currentUser.contactGranted || []).includes(ADMIN_ID)) {
+                            addActionButton('📞 申请联系', requestContact);
+                        } else {
+                            addActionButton('📞 拨打电话', () => window.location.href = 'tel:+8615986785788');
+                            addActionButton('💬 QQ', () => window.open('https://qm.qq.com/q/JObrZqjBqS', '_blank'));
+                        }
                     }
                 } else {
                     const friend = findUserByUid(chatId);
                     title.innerText = friend ? friend.name : '好友';
                 }
+                // 好友申请按钮始终显示
                 addActionButton('📋 好友申请', () => loadFriendRequestsModal());
 
                 function addActionButton(text, onClick) {
@@ -1054,13 +1115,42 @@
                 const input = document.getElementById('messageInput');
                 const text = input.value.trim();
                 if (!text || !currentChatWith) return;
-                addMessage(currentChatWith, {
+
+                let chatId = currentChatWith;
+                // 如果是私聊（管理员或好友），使用排序后的组合作为 chatId
+                if (currentChatWith !== PUBLIC_ID) {
+                    chatId = getPrivateChatId(currentUser.uid, currentChatWith);
+                }
+
+                addMessage(chatId, {
                     sender: currentUser.uid,
                     text: text,
                     time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                 });
-                loadMessages(currentChatWith);
+                loadMessages(chatId); // 注意这里传入的是 chatId
                 input.value = '';
+            }
+
+            // 重载 loadMessages 使用 chatId
+            function loadMessages(chatId) {
+                const msgs = getMessages(chatId);
+                const container = document.getElementById('messageList');
+                let html = '';
+                msgs.forEach(msg => {
+                    const isOwn = msg.sender === currentUser.uid;
+                    const sender = findUserByUid(msg.sender);
+                    html += `
+                        <div class="message ${isOwn ? 'own' : ''}">
+                            <div class="message-avatar">👤</div>
+                            <div class="message-bubble">
+                                <div>${msg.text}</div>
+                                <div class="message-time">${msg.time}</div>
+                            </div>
+                        </div>
+                    `;
+                });
+                container.innerHTML = html || '<div style="text-align:center; color:#6b8ba0; padding:30px;">暂无消息</div>';
+                container.scrollTop = container.scrollHeight;
             }
 
             // ---------- 个人信息 ----------
