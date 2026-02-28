@@ -23,6 +23,26 @@
             overflow-x: hidden;
         }
 
+        /* 扫描线特效 */
+        .scan-line {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #4a90e2, #a0c4ff, #4a90e2, transparent);
+            box-shadow: 0 0 15px #4a90e2;
+            animation: scan 3s linear infinite;
+            pointer-events: none;
+            z-index: 9999;
+            opacity: 0.6;
+        }
+
+        @keyframes scan {
+            0% { top: -2px; }
+            100% { top: 100%; }
+        }
+
         /* 动态粒子背景 */
         #particles {
             position: fixed;
@@ -452,9 +472,20 @@
             padding: 12px;
             border-bottom: 1px solid #2b5580;
         }
+
+        /* 欢迎弹窗自定义 */
+        .welcome-modal .modal-card {
+            text-align: center;
+        }
+        .welcome-message {
+            font-size: 2rem;
+            margin: 20px 0;
+            color: #b8dcff;
+        }
     </style>
 </head>
 <body>
+    <div class="scan-line"></div>
     <div id="particles"></div>
 
     <!-- 错误页面 -->
@@ -591,6 +622,17 @@
         </div>
     </div>
 
+    <!-- 欢迎弹窗模态（临时） -->
+    <div id="welcomeModal" class="modal-overlay hidden welcome-modal">
+        <div class="modal-card">
+            <h2>👋 欢迎回来</h2>
+            <div class="welcome-message" id="welcomeMessage"></div>
+            <div class="modal-buttons">
+                <button class="modal-btn" id="closeWelcome">开始使用</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         (function() {
             // ---------- 常量 ----------
@@ -671,6 +713,7 @@
                         currentUser = user;
                         document.getElementById('mainApp').classList.remove('hidden');
                         renderMainApp();
+                        showWelcomeModal(); // 显示欢迎弹窗
                     } else {
                         document.getElementById('passwordModal').classList.remove('hidden');
                         document.getElementById('submitAdminPassword').onclick = () => {
@@ -681,6 +724,7 @@
                                 document.getElementById('passwordModal').classList.add('hidden');
                                 document.getElementById('mainApp').classList.remove('hidden');
                                 renderMainApp();
+                                showWelcomeModal(); // 显示欢迎弹窗
                             } else alert('密码错误');
                             document.getElementById('adminPassword').value = '';
                         };
@@ -689,7 +733,20 @@
                     currentUser = user;
                     document.getElementById('mainApp').classList.remove('hidden');
                     renderMainApp();
+                    showWelcomeModal(); // 显示欢迎弹窗
                 }
+            }
+
+            // ---------- 显示欢迎弹窗（X博士） ----------
+            function showWelcomeModal() {
+                if (!currentUser) return;
+                const firstName = currentUser.name.charAt(0); // 称谓首个字
+                document.getElementById('welcomeMessage').innerText = `欢迎回来，${firstName}博士`;
+                document.getElementById('welcomeModal').classList.remove('hidden');
+                // 点击“开始使用”关闭弹窗
+                document.getElementById('closeWelcome').onclick = () => {
+                    document.getElementById('welcomeModal').classList.add('hidden');
+                };
             }
 
             // ---------- 渲染主界面 ----------
@@ -753,8 +810,16 @@
 
             function switchChat(chatId) {
                 currentChatWith = chatId;
-                renderMainApp();
+                // 重新渲染联系人高亮，但不需要完全重新渲染，只需更新active类
+                document.querySelectorAll('.contact-item').forEach(el => {
+                    if (el.dataset.chatid === chatId) {
+                        el.classList.add('active');
+                    } else {
+                        el.classList.remove('active');
+                    }
+                });
                 loadMessages(chatId);
+                updateChatHeader(chatId);
             }
 
             function loadMessages(chatId) {
@@ -972,7 +1037,7 @@
             });
             document.getElementById('closeProfile').addEventListener('click', () => document.getElementById('profileModal').classList.add('hidden'));
 
-            // ---------- 管理员面板 (简化) ----------
+            // ---------- 管理员面板 ----------
             function loadAdminPanel() {
                 const users = getUsers();
                 let html = '';
@@ -1107,6 +1172,3 @@
     </script>
 </body>
 </html>
-
-
-
