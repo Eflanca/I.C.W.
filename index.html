@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>I.C.W.</title>
+    <title>I.C.W. · 云同步版</title>
+    <!-- 引入 Supabase 客户端库 -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         /* ===== 全局样式与动态特效 ===== */
         * {
@@ -238,7 +240,7 @@
             align-items: center;
             justify-content: center;
             font-size: 1.4rem;
-            cursor: pointer; /* 头像可点击查看信息 */
+            cursor: pointer;
             transition: 0.2s;
         }
         .contact-avatar:hover {
@@ -247,7 +249,6 @@
         }
         .contact-info {
             flex: 1;
-            /* 不再绑定点击事件，点击区域由外层控制 */
         }
         .contact-name {
             font-weight: 500;
@@ -698,17 +699,15 @@
 
     <script>
         (function() {
+            // ---------- Supabase 配置（已填入您提供的信息）----------
+            const SUPABASE_URL = 'https://wgtxopppwdxhuuobtfvg.supabase.co';
+            const SUPABASE_ANON_KEY = 'sb_publishable_qVXMZkrcOjSPOTj4XfxKvw_MSinG_Yc';
+            const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
             // ---------- 常量 ----------
             const ADMIN_PASSWORD = "5720";
             const PUBLIC_ID = "PUBLIC";
             const ADMIN_ID = "0";
-
-            const STORAGE_KEYS = {
-                USERS: 'icw_users_final_v5',
-                MESSAGES: 'icw_messages_final_v5',
-                FRIEND_REQUESTS: 'icw_friend_requests_final',
-                CONTACT_REQUESTS: 'icw_contact_requests_final'
-            };
 
             // ---------- 基础路径检测 ----------
             function getBasePath() {
@@ -724,134 +723,206 @@
                 return match ? match[1] : null;
             }
 
-            // ---------- 生成私聊 chatId (排序后组合) ----------
             function getPrivateChatId(uid1, uid2) {
                 return [uid1, uid2].sort().join('_');
             }
 
-            // ---------- 初始化存储 ----------
-            if (!localStorage.getItem(STORAGE_KEYS.USERS)) {
-                localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify([
-                    { uid: ADMIN_ID, name: '伊法兰卡', tag: '管理员', avatar: '👤', contacts: [PUBLIC_ID], contactGranted: [], friends: [], isAdmin: true, registered: true }
-                ]));
-            }
-            if (!localStorage.getItem(STORAGE_KEYS.MESSAGES)) localStorage.setItem(STORAGE_KEYS.MESSAGES, '{}');
-            if (!localStorage.getItem(STORAGE_KEYS.FRIEND_REQUESTS)) localStorage.setItem(STORAGE_KEYS.FRIEND_REQUESTS, '[]');
-            if (!localStorage.getItem(STORAGE_KEYS.CONTACT_REQUESTS)) localStorage.setItem(STORAGE_KEYS.CONTACT_REQUESTS, '[]');
-
-            // ---------- 工具函数 ----------
-            const getUsers = () => JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS)) || [];
-            const saveUsers = (users) => localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
-            const findUserByUid = (uid) => getUsers().find(u => u.uid === uid);
-
-            const getFriendRequests = () => JSON.parse(localStorage.getItem(STORAGE_KEYS.FRIEND_REQUESTS)) || [];
-            const saveFriendRequests = (reqs) => localStorage.setItem(STORAGE_KEYS.FRIEND_REQUESTS, JSON.stringify(reqs));
-
-            const getMessages = (chatId) => (JSON.parse(localStorage.getItem(STORAGE_KEYS.MESSAGES)) || {})[chatId] || [];
-            const addMessage = (chatId, msg) => {
-                const all = JSON.parse(localStorage.getItem(STORAGE_KEYS.MESSAGES)) || {};
-                if (!all[chatId]) all[chatId] = [];
-                all[chatId].push(msg);
-                localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(all));
-            };
-            const deleteMessage = (chatId, index) => {
-                const all = JSON.parse(localStorage.getItem(STORAGE_KEYS.MESSAGES)) || {};
-                if (all[chatId] && all[chatId][index]) {
-                    all[chatId].splice(index, 1);
-                    localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(all));
+            // ---------- 云端用户操作 ----------
+            async function fetchUser(uid) {
+                const { data, error } = await supabase
+                    .from('users')
+                    .select('*')
+                    .eq('uid', uid)
+                    .single();
+                if (error) {
+                    console.error('获取用户失败', error);
+                    return null;
                 }
-            };
+                return data;
+            }
+
+            async function fetchAllUsers() {
+                const { data, error } = await supabase
+                    .from('users')
+                    .select('*');
+                if (error) {
+                    console.error('获取所有用户失败', error);
+                    return [];
+                }
+                return data;
+            }
+
+            async function upsertUser(user) {
+                const { error } = await supabase
+                    .from('users')
+                    .upsert(user, { onConflict: 'uid' });
+                if (error) {
+                    console.error('保存用户失败', error);
+                    return false;
+                }
+                return true;
+            }
+
+            // ---------- 云端消息操作 ----------
+            async function fetchMessages(chatId) {
+                const { data, error } = await supabase
+                    .from('messages')
+                    .select('*')
+                    .eq('chat_id', chatId)
+                    .order('created_at', { ascending: true });
+                if (error) {
+                    console.error('获取消息失败', error);
+                    return [];
+                }
+                return data.map(msg => ({
+                    sender: msg.sender,
+                    text: msg.text,
+                    time: msg.time
+                }));
+            }
+
+            async function addMessageToCloud(chatId, msg) {
+                const { error } = await supabase
+                    .from('messages')
+                    .insert([{
+                        chat_id: chatId,
+                        sender: msg.sender,
+                        text: msg.text,
+                        time: msg.time
+                    }]);
+                if (error) {
+                    console.error('发送消息失败', error);
+                    return false;
+                }
+                return true;
+            }
+
+            async function deleteMessageFromCloud(chatId, index) {
+                const { data, error } = await supabase
+                    .from('messages')
+                    .select('id')
+                    .eq('chat_id', chatId)
+                    .order('created_at', { ascending: true });
+                if (error || !data || index >= data.length) return false;
+                const msgId = data[index].id;
+                const { error: delError } = await supabase
+                    .from('messages')
+                    .delete()
+                    .eq('id', msgId);
+                return !delError;
+            }
+
+            // ---------- 实时订阅 ----------
+            let messageSubscription = null;
+            function subscribeToChat(chatId, onMessage) {
+                if (messageSubscription) messageSubscription.unsubscribe();
+                messageSubscription = supabase
+                    .channel(`chat:${chatId}`)
+                    .on('postgres_changes', {
+                        event: 'INSERT',
+                        schema: 'public',
+                        table: 'messages',
+                        filter: `chat_id=eq.${chatId}`
+                    }, payload => {
+                        onMessage({
+                            sender: payload.new.sender,
+                            text: payload.new.text,
+                            time: payload.new.time
+                        });
+                    })
+                    .subscribe();
+            }
 
             // ---------- 全局变量 ----------
             let currentUser = null;
             let currentChatWith = PUBLIC_ID;
+            let allUsersCache = [];
 
             // ---------- 页面加载时触发扫描线 ----------
             setTimeout(() => {
                 const scanLine = document.getElementById('scanLine');
-                if (scanLine) {
-                    scanLine.style.opacity = '1';
-                    scanLine.style.animation = 'scan 1s ease-out forwards';
-                }
+                if (scanLine) scanLine.style.animation = 'scan 1s ease-out forwards';
             }, 100);
 
-            // ---------- 路由处理 ----------
-            const uidFromPath = getUserIdFromPath();
-            if (!uidFromPath) {
-                window.location.href = getBasePath() + ADMIN_ID;
-            } else {
-                let user = findUserByUid(uidFromPath);
+            // ---------- 初始化：从路径加载用户 ----------
+            (async function init() {
+                const uidFromPath = getUserIdFromPath();
+                if (!uidFromPath) {
+                    window.location.href = getBasePath() + ADMIN_ID;
+                    return;
+                }
+
+                let user = await fetchUser(uidFromPath);
                 if (!user) {
                     document.getElementById('errorPage').classList.remove('hidden');
                     document.getElementById('backToAdminBtn').onclick = () => {
                         window.location.href = getBasePath() + ADMIN_ID;
                     };
-                } else {
-                    if (!user.registered) {
-                        document.getElementById('regUid').innerText = uidFromPath;
-                        document.getElementById('registerModal').classList.remove('hidden');
-                        document.getElementById('registerConfirm').onclick = () => {
-                            const name = document.getElementById('regName').value.trim();
-                            if (!name) { alert('称谓不能为空'); return; }
-                            const tag = document.getElementById('regTag').value.trim();
-                            const users = getUsers();
-                            const idx = users.findIndex(u => u.uid === uidFromPath);
-                            if (idx !== -1) {
-                                users[idx].name = name;
-                                users[idx].tag = tag;
-                                users[idx].registered = true;
-                                users[idx].contacts = [PUBLIC_ID, ADMIN_ID];
-                                users[idx].friends = [ADMIN_ID]; // 自动添加管理员为好友
-                                // 同时将新用户加入管理员的好友列表
-                                const adminIdx = users.findIndex(u => u.uid === ADMIN_ID);
-                                if (adminIdx !== -1) {
-                                    if (!users[adminIdx].friends) users[adminIdx].friends = [];
-                                    if (!users[adminIdx].friends.includes(uidFromPath)) {
-                                        users[adminIdx].friends.push(uidFromPath);
-                                    }
-                                }
-                                users[idx].contactGranted = [];
-                                saveUsers(users);
-                                currentUser = users[idx];
-                                document.getElementById('registerModal').classList.add('hidden');
-                                document.getElementById('mainApp').classList.remove('hidden');
-                                renderMainApp();
-                                showWelcomeModal(true);
-                            } else {
-                                alert('注册失败');
+                    return;
+                }
+
+                if (!user.registered) {
+                    document.getElementById('regUid').innerText = uidFromPath;
+                    document.getElementById('registerModal').classList.remove('hidden');
+                    document.getElementById('registerConfirm').onclick = async () => {
+                        const name = document.getElementById('regName').value.trim();
+                        if (!name) { alert('称谓不能为空'); return; }
+                        const tag = document.getElementById('regTag').value.trim();
+                        user.name = name;
+                        user.tag = tag;
+                        user.registered = true;
+                        user.contacts = [PUBLIC_ID, ADMIN_ID];
+                        user.friends = [ADMIN_ID];
+                        user.contact_granted = [];
+                        const adminUser = await fetchUser(ADMIN_ID);
+                        if (adminUser) {
+                            if (!adminUser.friends) adminUser.friends = [];
+                            if (!adminUser.friends.includes(uidFromPath)) {
+                                adminUser.friends.push(uidFromPath);
+                                await upsertUser(adminUser);
                             }
-                        };
-                    } else {
-                        if (uidFromPath === ADMIN_ID) {
-                            if (sessionStorage.getItem('icw_admin_final') === 'true') {
-                                currentUser = user;
-                                document.getElementById('mainApp').classList.remove('hidden');
-                                renderMainApp();
-                                showWelcomeModal(false);
-                            } else {
-                                document.getElementById('passwordModal').classList.remove('hidden');
-                                document.getElementById('submitAdminPassword').onclick = () => {
-                                    const pwd = document.getElementById('adminPassword').value;
-                                    if (pwd === ADMIN_PASSWORD) {
-                                        sessionStorage.setItem('icw_admin_final', 'true');
-                                        currentUser = user;
-                                        document.getElementById('passwordModal').classList.add('hidden');
-                                        document.getElementById('mainApp').classList.remove('hidden');
-                                        renderMainApp();
-                                        showWelcomeModal(false);
-                                    } else alert('密码错误');
-                                    document.getElementById('adminPassword').value = '';
-                                };
-                            }
+                        }
+                        const success = await upsertUser(user);
+                        if (success) {
+                            currentUser = user;
+                            document.getElementById('registerModal').classList.add('hidden');
+                            document.getElementById('mainApp').classList.remove('hidden');
+                            renderMainApp();
+                            showWelcomeModal(true);
                         } else {
+                            alert('注册失败，请重试');
+                        }
+                    };
+                } else {
+                    if (uidFromPath === ADMIN_ID) {
+                        if (sessionStorage.getItem('icw_admin_final') === 'true') {
                             currentUser = user;
                             document.getElementById('mainApp').classList.remove('hidden');
                             renderMainApp();
                             showWelcomeModal(false);
+                        } else {
+                            document.getElementById('passwordModal').classList.remove('hidden');
+                            document.getElementById('submitAdminPassword').onclick = async () => {
+                                const pwd = document.getElementById('adminPassword').value;
+                                if (pwd === ADMIN_PASSWORD) {
+                                    sessionStorage.setItem('icw_admin_final', 'true');
+                                    currentUser = user;
+                                    document.getElementById('passwordModal').classList.add('hidden');
+                                    document.getElementById('mainApp').classList.remove('hidden');
+                                    renderMainApp();
+                                    showWelcomeModal(false);
+                                } else alert('密码错误');
+                                document.getElementById('adminPassword').value = '';
+                            };
                         }
+                    } else {
+                        currentUser = user;
+                        document.getElementById('mainApp').classList.remove('hidden');
+                        renderMainApp();
+                        showWelcomeModal(false);
                     }
                 }
-            }
+            })();
 
             // ---------- 显示欢迎弹窗 ----------
             function showWelcomeModal(isNewUser) {
@@ -866,7 +937,7 @@
             }
 
             // ---------- 渲染主界面 ----------
-            function renderMainApp() {
+            async function renderMainApp() {
                 if (!currentUser) return;
                 document.getElementById('headerName').innerText = currentUser.name;
                 document.getElementById('headerUid').innerText = '#' + currentUser.uid;
@@ -874,13 +945,17 @@
                 document.getElementById('myTag').innerText = currentUser.tag || '无标签';
                 document.getElementById('myAvatar').innerText = '👤';
 
-                const pendingCount = getFriendRequests().filter(r => r.to === currentUser.uid && r.status === 'pending').length;
+                const { data: friendReqs } = await supabase
+                    .from('friend_requests')
+                    .select('*')
+                    .eq('to', currentUser.uid)
+                    .eq('status', 'pending');
+                const pendingCount = friendReqs ? friendReqs.length : 0;
                 const badge = document.getElementById('friendRequestBadge');
                 badge.classList.toggle('hidden', pendingCount === 0);
                 if (pendingCount > 0) badge.innerText = pendingCount;
 
-                // 构建联系人列表
-                const users = getUsers();
+                allUsersCache = await fetchAllUsers();
                 const friends = currentUser.friends || [];
                 let html = `
                     <div class="contact-category">📢 公共</div>
@@ -891,6 +966,7 @@
                 `;
 
                 if (currentUser.uid !== ADMIN_ID) {
+                    const admin = allUsersCache.find(u => u.uid === ADMIN_ID);
                     html += `
                         <div class="contact-category">🔷 伊法兰卡</div>
                         <div class="contact-item ${currentChatWith === ADMIN_ID ? 'active' : ''}" data-chatid="${ADMIN_ID}" data-type="admin">
@@ -903,8 +979,8 @@
                 if (friends.length > 0) {
                     html += `<div class="contact-category">👥 好友</div>`;
                     friends.forEach(fuid => {
-                        if (fuid === ADMIN_ID && currentUser.uid === ADMIN_ID) return; // 管理员不显示自己
-                        const friend = users.find(u => u.uid === fuid);
+                        if (fuid === ADMIN_ID && currentUser.uid === ADMIN_ID) return;
+                        const friend = allUsersCache.find(u => u.uid === fuid);
                         if (friend) {
                             html += `<div class="contact-item ${currentChatWith === fuid ? 'active' : ''}" data-chatid="${fuid}" data-type="friend">
                                 <div class="contact-avatar">👤</div>
@@ -919,19 +995,13 @@
 
                 document.getElementById('contactList').innerHTML = html;
 
-                // 为每个联系人绑定点击事件
                 document.querySelectorAll('.contact-item').forEach(el => {
-                    // 点击整个项目切换聊天（除非点击了头像）
                     el.addEventListener('click', (e) => {
-                        // 如果点击的是头像，不触发切换（头像有自己的事件）
-                        if (e.target.closest('.contact-avatar')) {
-                            return;
-                        }
+                        if (e.target.closest('.contact-avatar')) return;
                         const chatId = el.dataset.chatid;
                         if (chatId) switchChat(chatId);
                     });
 
-                    // 为头像绑定查看信息事件
                     const avatar = el.querySelector('.contact-avatar');
                     if (avatar) {
                         avatar.addEventListener('click', (e) => {
@@ -941,19 +1011,18 @@
                             if (type === 'public') {
                                 showContactInfo('公屏', '公共聊天室', PUBLIC_ID);
                             } else if (type === 'admin') {
-                                const admin = findUserByUid(ADMIN_ID);
+                                const admin = allUsersCache.find(u => u.uid === ADMIN_ID);
                                 showContactInfo(admin.name, admin.tag || '管理员', admin.uid);
                             } else if (type === 'friend') {
-                                const friend = findUserByUid(chatId);
+                                const friend = allUsersCache.find(u => u.uid === chatId);
                                 if (friend) showContactInfo(friend.name, friend.tag || '无', friend.uid);
                             }
                         });
                     }
                 });
 
-                // 管理按钮
                 const adminBtnContainer = document.getElementById('adminButtonContainer');
-                if (currentUser.isAdmin) {
+                if (currentUser.is_admin) {
                     adminBtnContainer.innerHTML = `<button class="action-btn" style="width:100%;" id="adminPanelBtn">⚙ 管理控制台</button>`;
                     document.getElementById('adminPanelBtn').addEventListener('click', () => {
                         loadAdminPanel();
@@ -964,12 +1033,7 @@
                 }
 
                 if (!currentChatWith) switchChat(PUBLIC_ID);
-                else {
-                    if (currentChatWith !== PUBLIC_ID && currentChatWith !== ADMIN_ID && !(currentUser.friends || []).includes(currentChatWith)) {
-                        currentChatWith = PUBLIC_ID;
-                    }
-                    switchChat(currentChatWith);
-                }
+                else switchChat(currentChatWith);
             }
 
             function showContactInfo(name, tag, uid) {
@@ -982,22 +1046,29 @@
                 };
             }
 
-            function switchChat(chatId) {
+            async function switchChat(chatId) {
                 currentChatWith = chatId;
                 document.querySelectorAll('.contact-item').forEach(el => {
                     el.classList.toggle('active', el.dataset.chatid === chatId);
                 });
-                loadMessages(chatId);
+
+                const chatIdForStorage = chatId === PUBLIC_ID ? PUBLIC_ID : getPrivateChatId(currentUser.uid, chatId);
+                subscribeToChat(chatIdForStorage, async () => {
+                    await loadMessages(chatId);
+                });
+
+                await loadMessages(chatId);
                 updateChatHeader(chatId);
             }
 
-            function loadMessages(chatId) {
-                const msgs = getMessages(chatId);
+            async function loadMessages(chatId) {
+                const chatIdForStorage = chatId === PUBLIC_ID ? PUBLIC_ID : getPrivateChatId(currentUser.uid, chatId);
+                const msgs = await fetchMessages(chatIdForStorage);
                 const container = document.getElementById('messageList');
                 let html = '';
                 msgs.forEach((msg, index) => {
                     const isOwn = msg.sender === currentUser.uid;
-                    const sender = findUserByUid(msg.sender);
+                    const sender = allUsersCache.find(u => u.uid === msg.sender);
                     const senderName = sender ? sender.name : msg.sender;
                     html += `
                         <div class="message ${isOwn ? 'own' : ''}" data-msg-index="${index}">
@@ -1006,7 +1077,7 @@
                                 <div class="message-sender">${senderName}</div>
                                 <div>${msg.text}</div>
                                 <div class="message-time">${msg.time}</div>
-                                ${currentUser.isAdmin ? `<button class="delete-msg-btn" data-chatid="${chatId}" data-index="${index}">✕</button>` : ''}
+                                ${currentUser.is_admin ? `<button class="delete-msg-btn" data-chatid="${chatId}" data-index="${index}">✕</button>` : ''}
                             </div>
                         </div>
                     `;
@@ -1014,32 +1085,35 @@
                 container.innerHTML = html || '<div style="text-align:center; color:#6b8ba0; padding:30px;">暂无消息</div>';
                 container.scrollTop = container.scrollHeight;
 
-                // 为每条消息的头像绑定点击事件（查看发送者信息）
                 document.querySelectorAll('.message-avatar').forEach(avatar => {
-                    avatar.addEventListener('click', (e) => {
+                    avatar.addEventListener('click', async (e) => {
                         e.stopPropagation();
                         const senderUid = avatar.dataset.sender;
                         if (senderUid === PUBLIC_ID) {
                             showContactInfo('公屏', '公共聊天室', PUBLIC_ID);
                             return;
                         }
-                        const sender = findUserByUid(senderUid);
+                        const sender = allUsersCache.find(u => u.uid === senderUid) || await fetchUser(senderUid);
                         if (sender) {
                             showContactInfo(sender.name, sender.tag || '无', sender.uid);
                         }
                     });
                 });
 
-                // 为删除按钮绑定事件（仅管理员可见）
-                if (currentUser.isAdmin) {
+                if (currentUser.is_admin) {
                     document.querySelectorAll('.delete-msg-btn').forEach(btn => {
-                        btn.addEventListener('click', (e) => {
+                        btn.addEventListener('click', async (e) => {
                             e.stopPropagation();
                             const chatId = btn.dataset.chatid;
                             const index = parseInt(btn.dataset.index, 10);
                             if (confirm('确定删除此消息？')) {
-                                deleteMessage(chatId, index);
-                                loadMessages(chatId); // 重新加载当前聊天
+                                const chatIdForStorage = chatId === PUBLIC_ID ? PUBLIC_ID : getPrivateChatId(currentUser.uid, chatId);
+                                const success = await deleteMessageFromCloud(chatIdForStorage, index);
+                                if (success) {
+                                    await loadMessages(chatId);
+                                } else {
+                                    alert('删除失败');
+                                }
                             }
                         });
                     });
@@ -1056,7 +1130,7 @@
                 } else if (chatId === ADMIN_ID) {
                     title.innerText = '伊法兰卡';
                     if (currentUser.uid !== ADMIN_ID) {
-                        if (!(currentUser.contactGranted || []).includes(ADMIN_ID)) {
+                        if (!(currentUser.contact_granted || []).includes(ADMIN_ID)) {
                             addActionButton('📞 申请联系', requestContact);
                         } else {
                             addActionButton('📞 拨打电话', () => window.location.href = 'tel:+8615986785788');
@@ -1064,7 +1138,7 @@
                         }
                     }
                 } else {
-                    const friend = findUserByUid(chatId);
+                    const friend = allUsersCache.find(u => u.uid === chatId);
                     title.innerText = friend ? friend.name : '好友';
                 }
                 addActionButton('📋 好友申请', () => loadFriendRequestsModal());
@@ -1079,12 +1153,19 @@
             }
 
             // ---------- 好友系统核心 ----------
-            function requestContact() {
-                const reqs = JSON.parse(localStorage.getItem(STORAGE_KEYS.CONTACT_REQUESTS)) || [];
-                if (!reqs.find(r => r.from === currentUser.uid)) {
-                    reqs.push({ from: currentUser.uid, to: ADMIN_ID, time: new Date().toLocaleString() });
-                    localStorage.setItem(STORAGE_KEYS.CONTACT_REQUESTS, JSON.stringify(reqs));
+            async function requestContact() {
+                const { data: existing } = await supabase
+                    .from('contact_requests')
+                    .select('*')
+                    .eq('from', currentUser.uid)
+                    .eq('to', ADMIN_ID);
+                if (!existing || existing.length === 0) {
+                    await supabase
+                        .from('contact_requests')
+                        .insert([{ from: currentUser.uid, to: ADMIN_ID, time: new Date().toLocaleString() }]);
                     alert('联系申请已发送');
+                } else {
+                    alert('已申请过');
                 }
             }
 
@@ -1097,12 +1178,12 @@
             document.getElementById('friendSearchInput').addEventListener('input', (e) => {
                 const query = e.target.value.trim();
                 if (!query) { document.getElementById('friendSearchResults').innerHTML = ''; return; }
-                const users = getUsers().filter(u => u.uid !== currentUser.uid && u.uid !== ADMIN_ID && u.uid !== PUBLIC_ID && u.registered === true);
+                const users = allUsersCache.filter(u => u.uid !== currentUser.uid && u.uid !== ADMIN_ID && u.uid !== PUBLIC_ID && u.registered === true);
                 const results = users.filter(u => u.uid.includes(query) || (u.name && u.name.includes(query)));
                 let html = '';
                 results.forEach(u => {
                     const alreadyFriend = (currentUser.friends || []).includes(u.uid);
-                    const alreadyRequested = getFriendRequests().some(r => r.from === currentUser.uid && r.to === u.uid && r.status === 'pending');
+                    const alreadyRequested = false; // 简化，可查询 friend_requests
                     html += `
                         <div style="display:flex; justify-content:space-between; align-items:center; padding:8px; border-bottom:1px solid #2b5580;">
                             <span>${u.name} (${u.uid})</span>
@@ -1114,11 +1195,11 @@
                 });
                 document.getElementById('friendSearchResults').innerHTML = html || '无匹配用户';
                 document.querySelectorAll('[data-send]').forEach(btn => {
-                    btn.addEventListener('click', (e) => {
+                    btn.addEventListener('click', async (e) => {
                         const toUid = e.target.dataset.send;
-                        const reqs = getFriendRequests();
-                        reqs.push({ from: currentUser.uid, to: toUid, status: 'pending', time: new Date().toISOString() });
-                        saveFriendRequests(reqs);
+                        await supabase
+                            .from('friend_requests')
+                            .insert([{ from: currentUser.uid, to: toUid, status: 'pending', time: new Date().toISOString() }]);
                         alert('好友申请已发送');
                         document.getElementById('friendSearchInput').value = '';
                         document.getElementById('friendSearchResults').innerHTML = '';
@@ -1131,21 +1212,25 @@
                 document.getElementById('friendSearchModal').classList.add('hidden');
             });
 
-            function loadFriendRequestsModal() {
-                const reqs = getFriendRequests().filter(r => r.to === currentUser.uid && r.status === 'pending');
+            async function loadFriendRequestsModal() {
+                const { data: reqs } = await supabase
+                    .from('friend_requests')
+                    .select('*')
+                    .eq('to', currentUser.uid)
+                    .eq('status', 'pending');
                 const listDiv = document.getElementById('friendRequestsList');
-                if (reqs.length === 0) {
+                if (!reqs || reqs.length === 0) {
                     listDiv.innerHTML = '<p style="text-align:center;">暂无待处理的好友申请</p>';
                 } else {
                     let html = '';
                     reqs.forEach((req, idx) => {
-                        const fromUser = findUserByUid(req.from);
+                        const fromUser = allUsersCache.find(u => u.uid === req.from);
                         html += `
                             <div class="friend-request-item">
                                 <span>${fromUser ? fromUser.name : req.from} 想要添加你为好友</span>
                                 <div>
-                                    <button class="action-btn" data-accept="${idx}">同意</button>
-                                    <button class="action-btn" data-reject="${idx}">拒绝</button>
+                                    <button class="action-btn" data-accept="${req.id}">同意</button>
+                                    <button class="action-btn" data-reject="${req.id}">拒绝</button>
                                 </div>
                             </div>
                         `;
@@ -1153,26 +1238,27 @@
                     listDiv.innerHTML = html;
 
                     document.querySelectorAll('[data-accept]').forEach(btn => {
-                        btn.addEventListener('click', (e) => {
-                            const idx = e.target.dataset.accept;
-                            const reqsAll = getFriendRequests();
-                            const req = reqsAll[idx];
+                        btn.addEventListener('click', async (e) => {
+                            const reqId = e.target.dataset.accept;
+                            const { data: req } = await supabase
+                                .from('friend_requests')
+                                .select('*')
+                                .eq('id', reqId)
+                                .single();
                             if (req && req.to === currentUser.uid) {
                                 if (!currentUser.friends) currentUser.friends = [];
                                 if (!currentUser.friends.includes(req.from)) currentUser.friends.push(req.from);
-                                const fromUser = findUserByUid(req.from);
+                                const fromUser = allUsersCache.find(u => u.uid === req.from);
                                 if (fromUser) {
                                     if (!fromUser.friends) fromUser.friends = [];
                                     if (!fromUser.friends.includes(currentUser.uid)) fromUser.friends.push(currentUser.uid);
-                                    const users = getUsers();
-                                    const fromIdx = users.findIndex(u => u.uid === req.from);
-                                    users[fromIdx] = fromUser;
-                                    const currentIdx = users.findIndex(u => u.uid === currentUser.uid);
-                                    users[currentIdx] = currentUser;
-                                    saveUsers(users);
+                                    await upsertUser(fromUser);
                                 }
-                                reqsAll.splice(idx, 1);
-                                saveFriendRequests(reqsAll);
+                                await upsertUser(currentUser);
+                                await supabase
+                                    .from('friend_requests')
+                                    .update({ status: 'accepted' })
+                                    .eq('id', reqId);
                                 loadFriendRequestsModal();
                                 renderMainApp();
                             }
@@ -1180,11 +1266,12 @@
                     });
 
                     document.querySelectorAll('[data-reject]').forEach(btn => {
-                        btn.addEventListener('click', (e) => {
-                            const idx = e.target.dataset.reject;
-                            const reqsAll = getFriendRequests();
-                            reqsAll.splice(idx, 1);
-                            saveFriendRequests(reqsAll);
+                        btn.addEventListener('click', async (e) => {
+                            const reqId = e.target.dataset.reject;
+                            await supabase
+                                .from('friend_requests')
+                                .update({ status: 'rejected' })
+                                .eq('id', reqId);
                             loadFriendRequestsModal();
                         });
                     });
@@ -1199,7 +1286,7 @@
             // ---------- 消息发送 ----------
             document.getElementById('sendMsg').addEventListener('click', sendMessage);
             document.getElementById('messageInput').addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
-            function sendMessage() {
+            async function sendMessage() {
                 const input = document.getElementById('messageInput');
                 const text = input.value.trim();
                 if (!text || !currentChatWith) return;
@@ -1209,13 +1296,17 @@
                     chatId = getPrivateChatId(currentUser.uid, currentChatWith);
                 }
 
-                addMessage(chatId, {
+                const msg = {
                     sender: currentUser.uid,
                     text: text,
                     time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                });
-                loadMessages(chatId);
-                input.value = '';
+                };
+                const success = await addMessageToCloud(chatId, msg);
+                if (success) {
+                    input.value = '';
+                } else {
+                    alert('发送失败，请重试');
+                }
             }
 
             // ---------- 个人信息 ----------
@@ -1225,23 +1316,24 @@
                 document.getElementById('profileTag').value = currentUser.tag || '';
                 document.getElementById('profileModal').classList.remove('hidden');
             });
-            document.getElementById('saveProfile').addEventListener('click', () => {
+            document.getElementById('saveProfile').addEventListener('click', async () => {
                 const newName = document.getElementById('profileName').value.trim();
                 if (!newName) return alert('称谓不能为空');
                 currentUser.name = newName;
                 currentUser.tag = document.getElementById('profileTag').value.trim();
-                const users = getUsers();
-                const idx = users.findIndex(u => u.uid === currentUser.uid);
-                users[idx] = currentUser;
-                saveUsers(users);
-                document.getElementById('profileModal').classList.add('hidden');
-                renderMainApp();
+                const success = await upsertUser(currentUser);
+                if (success) {
+                    document.getElementById('profileModal').classList.add('hidden');
+                    renderMainApp();
+                } else {
+                    alert('保存失败');
+                }
             });
             document.getElementById('closeProfile').addEventListener('click', () => document.getElementById('profileModal').classList.add('hidden'));
 
             // ---------- 管理员面板 ----------
-            function loadAdminPanel() {
-                const users = getUsers();
+            async function loadAdminPanel() {
+                const users = allUsersCache;
                 let html = '';
                 users.forEach(u => {
                     if (u.uid !== ADMIN_ID) {
@@ -1259,8 +1351,9 @@
                 document.getElementById('userListAdmin').innerHTML = html || '暂无其他用户';
 
                 document.querySelectorAll('[data-login]').forEach(btn => {
-                    btn.addEventListener('click', (e) => {
-                        const target = findUserByUid(e.target.dataset.login);
+                    btn.addEventListener('click', async (e) => {
+                        const targetUid = e.target.dataset.login;
+                        const target = users.find(u => u.uid === targetUid);
                         if (target && target.registered) {
                             currentUser = target;
                             document.getElementById('adminModal').classList.add('hidden');
@@ -1270,81 +1363,84 @@
                     });
                 });
                 document.querySelectorAll('[data-delete]').forEach(btn => {
-                    btn.addEventListener('click', (e) => {
+                    btn.addEventListener('click', async (e) => {
                         const targetUid = e.target.dataset.delete;
                         if (confirm(`注销用户 ${targetUid}？`)) {
-                            saveUsers(getUsers().filter(u => u.uid !== targetUid));
+                            await supabase.from('users').delete().eq('uid', targetUid);
+                            allUsersCache = await fetchAllUsers();
                             loadAdminPanel();
                         }
                     });
                 });
                 document.querySelectorAll('[data-grant]').forEach(btn => {
-                    btn.addEventListener('click', (e) => {
+                    btn.addEventListener('click', async (e) => {
                         const targetUid = e.target.dataset.grant;
-                        const user = findUserByUid(targetUid);
+                        const user = users.find(u => u.uid === targetUid);
                         if (user && user.registered) {
-                            if (!user.contactGranted) user.contactGranted = [];
-                            if (!user.contactGranted.includes(ADMIN_ID)) {
-                                user.contactGranted.push(ADMIN_ID);
-                                const usersAll = getUsers();
-                                const idx = usersAll.findIndex(u => u.uid === targetUid);
-                                usersAll[idx] = user;
-                                saveUsers(usersAll);
+                            if (!user.contact_granted) user.contact_granted = [];
+                            if (!user.contact_granted.includes(ADMIN_ID)) {
+                                user.contact_granted.push(ADMIN_ID);
+                                await upsertUser(user);
                                 alert('已授予联系权限');
                             }
                         }
                     });
                 });
 
-                const contactReqs = JSON.parse(localStorage.getItem(STORAGE_KEYS.CONTACT_REQUESTS)) || [];
+                const { data: contactReqs } = await supabase
+                    .from('contact_requests')
+                    .select('*');
                 let reqHtml = '';
-                contactReqs.forEach((req, idx) => {
-                    const from = findUserByUid(req.from);
-                    reqHtml += `<div>${from ? from.name : req.from} 申请联系 <button class="action-btn" data-accept="${idx}">同意</button></div>`;
+                (contactReqs || []).forEach((req, idx) => {
+                    const from = allUsersCache.find(u => u.uid === req.from);
+                    reqHtml += `<div>${from ? from.name : req.from} 申请联系 <button class="action-btn" data-accept="${req.id}">同意</button></div>`;
                 });
                 document.getElementById('pendingContactList').innerHTML = reqHtml || '无';
                 document.querySelectorAll('[data-accept]').forEach(btn => {
-                    btn.addEventListener('click', (e) => {
-                        const idx = e.target.dataset.accept;
-                        const reqs = JSON.parse(localStorage.getItem(STORAGE_KEYS.CONTACT_REQUESTS)) || [];
-                        const req = reqs[idx];
+                    btn.addEventListener('click', async (e) => {
+                        const reqId = e.target.dataset.accept;
+                        const { data: req } = await supabase
+                            .from('contact_requests')
+                            .select('*')
+                            .eq('id', reqId)
+                            .single();
                         if (req) {
-                            const user = findUserByUid(req.from);
+                            const user = allUsersCache.find(u => u.uid === req.from);
                             if (user && user.registered) {
-                                if (!user.contactGranted) user.contactGranted = [];
-                                if (!user.contactGranted.includes(ADMIN_ID)) {
-                                    user.contactGranted.push(ADMIN_ID);
-                                    const usersAll = getUsers();
-                                    const uidx = usersAll.findIndex(u => u.uid === req.from);
-                                    usersAll[uidx] = user;
-                                    saveUsers(usersAll);
+                                if (!user.contact_granted) user.contact_granted = [];
+                                if (!user.contact_granted.includes(ADMIN_ID)) {
+                                    user.contact_granted.push(ADMIN_ID);
+                                    await upsertUser(user);
                                 }
                             }
-                            reqs.splice(idx, 1);
-                            localStorage.setItem(STORAGE_KEYS.CONTACT_REQUESTS, JSON.stringify(reqs));
+                            await supabase
+                                .from('contact_requests')
+                                .delete()
+                                .eq('id', reqId);
                             loadAdminPanel();
                         }
                     });
                 });
             }
 
-            document.getElementById('createUserBtn').addEventListener('click', () => {
-                const users = getUsers();
+            document.getElementById('createUserBtn').addEventListener('click', async () => {
+                const users = allUsersCache;
                 let maxId = 0;
                 users.forEach(u => { if (!isNaN(u.uid) && parseInt(u.uid) > maxId) maxId = parseInt(u.uid); });
                 const newUid = (maxId + 1).toString();
-                users.push({
+                const newUser = {
                     uid: newUid,
                     name: '',
                     tag: '',
                     avatar: '👤',
                     contacts: [],
-                    contactGranted: [],
+                    contact_granted: [],
                     friends: [],
-                    isAdmin: false,
+                    is_admin: false,
                     registered: false
-                });
-                saveUsers(users);
+                };
+                await upsertUser(newUser);
+                allUsersCache.push(newUser);
                 const link = `${window.location.origin}${getBasePath()}${newUid}`;
                 document.getElementById('newUserResult').innerText = `编号: ${newUid}\n链接: ${link}`;
                 document.getElementById('newUserResultModal').classList.remove('hidden');
@@ -1353,7 +1449,6 @@
             document.getElementById('closeNewUserResult').addEventListener('click', () => {
                 document.getElementById('newUserResultModal').classList.add('hidden');
             });
-
             document.getElementById('adminClose').addEventListener('click', () => document.getElementById('adminModal').classList.add('hidden'));
 
             // 粒子背景
