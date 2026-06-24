@@ -6,7 +6,7 @@
     <title>I.C.W.</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        /* ===== 完整样式（与之前一致） ===== */
+        /* ===== 完整样式 ===== */
         * {
             margin: 0;
             padding: 0;
@@ -512,6 +512,27 @@
             color: #b8dcff;
             word-break: break-word;
         }
+
+        /* 加载提示 */
+        #loadingIndicator {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 100;
+            color: #8bb4dd;
+            font-size: 1rem;
+            background: rgba(11, 15, 23, 0.8);
+            padding: 16px 32px;
+            border-radius: 40px;
+            border: 1px solid rgba(100, 180, 255, 0.3);
+            backdrop-filter: blur(10px);
+            display: none;
+        }
+        #loadingIndicator.show {
+            display: block;
+        }
+
         @media (max-width: 768px) {
             .glass-orb { border-radius: 30px; height: 95vh; }
             .app-header { padding: 15px 20px; }
@@ -536,6 +557,7 @@
 <body>
     <div class="scan-line" id="scanLine"></div>
     <div id="particles"></div>
+    <div id="loadingIndicator">⏳ 加载中...</div>
 
     <!-- 错误页面 -->
     <div id="errorPage" class="error-container hidden">
@@ -840,10 +862,15 @@
 
             // ---------- 启动应用 ----------
             async function startApp() {
+                const loading = document.getElementById('loadingIndicator');
+                loading.classList.add('show');
                 console.log('startApp 开始执行');
+
                 try {
                     const encoded = getEncodedFromPath();
                     console.log('路径编码:', encoded);
+
+                    // 如果没有路径段，重定向到管理员
                     if (!encoded) {
                         window.location.href = getBasePath() + "0";
                         return;
@@ -856,6 +883,7 @@
                         const decoded = decodeId(encoded);
                         if (decoded === null) {
                             document.getElementById('errorPage').classList.remove('hidden');
+                            loading.classList.remove('show');
                             document.getElementById('backToAdminBtn').onclick = () => {
                                 window.location.href = getBasePath() + "0";
                             };
@@ -865,7 +893,10 @@
                     }
 
                     console.log('解码后UID:', uid);
+
+                    // 尝试从云端获取用户
                     let user = await fetchUser(uid);
+
                     // 如果是管理员且云端不存在，则自动创建
                     if (!user && uid === ADMIN_ID) {
                         console.log('管理员不存在，自动创建...');
@@ -886,21 +917,26 @@
                             console.log('管理员创建成功');
                         } else {
                             alert('管理员创建失败，请检查数据库权限');
+                            loading.classList.remove('show');
                             return;
                         }
                     }
 
                     if (!user) {
                         document.getElementById('errorPage').classList.remove('hidden');
+                        loading.classList.remove('show');
                         document.getElementById('backToAdminBtn').onclick = () => {
                             window.location.href = getBasePath() + "0";
                         };
                         return;
                     }
 
+                    // 用户存在，处理登录/注册流程
                     if (!user.registered) {
+                        // 未注册：显示注册模态
                         document.getElementById('regUid').innerText = uid;
                         document.getElementById('registerModal').classList.remove('hidden');
+                        loading.classList.remove('show');
                         document.getElementById('registerConfirm').onclick = async () => {
                             const name = document.getElementById('regName').value.trim();
                             if (!name) { alert('称谓不能为空'); return; }
@@ -911,6 +947,7 @@
                             user.contacts = [PUBLIC_ID, ADMIN_ID];
                             user.friends = [ADMIN_ID];
                             user.contact_granted = [];
+                            // 将新用户加入管理员好友列表
                             const adminUser = await fetchUser(ADMIN_ID);
                             if (adminUser) {
                                 if (!adminUser.friends) adminUser.friends = [];
@@ -931,13 +968,18 @@
                             }
                         };
                     } else {
+                        // 已注册用户
                         if (uid === ADMIN_ID) {
+                            // 管理员需要验证密码
                             if (sessionStorage.getItem('icw_admin_final') === 'true') {
                                 currentUser = user;
                                 document.getElementById('mainApp').classList.remove('hidden');
+                                loading.classList.remove('show');
                                 await renderMainApp();
                                 showWelcomeModal(false);
                             } else {
+                                // 显示密码模态
+                                loading.classList.remove('show');
                                 document.getElementById('passwordModal').classList.remove('hidden');
                                 document.getElementById('submitAdminPassword').onclick = async () => {
                                     const pwd = document.getElementById('adminPassword').value;
@@ -948,20 +990,62 @@
                                         document.getElementById('mainApp').classList.remove('hidden');
                                         await renderMainApp();
                                         showWelcomeModal(false);
-                                    } else alert('密码错误');
+                                    } else {
+                                        alert('密码错误');
+                                    }
                                     document.getElementById('adminPassword').value = '';
                                 };
                             }
                         } else {
+                            // 普通用户直接登录
                             currentUser = user;
                             document.getElementById('mainApp').classList.remove('hidden');
+                            loading.classList.remove('show');
                             await renderMainApp();
                             showWelcomeModal(false);
                         }
                     }
                 } catch (error) {
                     console.error('启动应用出错:', error);
-                    alert('加载失败，请刷新重试。');
+                    loading.classList.remove('show');
+                    // 如果是管理员路径，尝试降级显示登录界面（不依赖云端）
+                    const encoded = getEncodedFromPath();
+                    if (encoded === "0" || !encoded) {
+                        // 直接显示管理员密码框，并自动创建管理员
+                        try {
+                            const adminUser = {
+                                uid: ADMIN_ID,
+                                name: '伊法兰卡',
+                                tag: '管理员',
+                                avatar: '👤',
+                                contacts: [PUBLIC_ID],
+                                contact_granted: [],
+                                friends: [],
+                                is_admin: true,
+                                registered: true
+                            };
+                            await upsertUser(adminUser);
+                            document.getElementById('passwordModal').classList.remove('hidden');
+                            document.getElementById('submitAdminPassword').onclick = () => {
+                                const pwd = document.getElementById('adminPassword').value;
+                                if (pwd === ADMIN_PASSWORD) {
+                                    sessionStorage.setItem('icw_admin_final', 'true');
+                                    currentUser = adminUser;
+                                    document.getElementById('passwordModal').classList.add('hidden');
+                                    document.getElementById('mainApp').classList.remove('hidden');
+                                    renderMainApp();
+                                    showWelcomeModal(false);
+                                } else {
+                                    alert('密码错误');
+                                }
+                                document.getElementById('adminPassword').value = '';
+                            };
+                        } catch (e2) {
+                            alert('无法连接到服务器，请检查网络后刷新');
+                        }
+                    } else {
+                        alert('加载失败，请刷新重试。错误信息：' + error.message);
+                    }
                 }
             }
 
@@ -986,17 +1070,27 @@
                 document.getElementById('myTag').innerText = currentUser.tag || '无标签';
                 document.getElementById('myAvatar').innerText = '👤';
 
-                const { data: friendReqs } = await supabase
-                    .from('friend_requests')
-                    .select('*')
-                    .eq('to_uid', currentUser.uid)
-                    .eq('status', 'pending');
-                const pendingCount = friendReqs ? friendReqs.length : 0;
-                const badge = document.getElementById('friendRequestBadge');
-                badge.classList.toggle('hidden', pendingCount === 0);
-                if (pendingCount > 0) badge.innerText = pendingCount;
+                try {
+                    const { data: friendReqs } = await supabase
+                        .from('friend_requests')
+                        .select('*')
+                        .eq('to_uid', currentUser.uid)
+                        .eq('status', 'pending');
+                    const pendingCount = friendReqs ? friendReqs.length : 0;
+                    const badge = document.getElementById('friendRequestBadge');
+                    badge.classList.toggle('hidden', pendingCount === 0);
+                    if (pendingCount > 0) badge.innerText = pendingCount;
+                } catch (e) {
+                    console.warn('获取好友申请失败', e);
+                }
 
-                allUsersCache = await fetchAllUsers();
+                try {
+                    allUsersCache = await fetchAllUsers();
+                } catch (e) {
+                    console.warn('获取用户列表失败', e);
+                    allUsersCache = [];
+                }
+
                 const friends = currentUser.friends || [];
                 let html = `
                     <div class="contact-category">📢 公共</div>
@@ -1051,7 +1145,7 @@
                                 showContactInfo('公屏', '公共聊天室', PUBLIC_ID);
                             } else if (type === 'admin') {
                                 const admin = allUsersCache.find(u => u.uid === ADMIN_ID);
-                                showContactInfo(admin.name, admin.tag || '管理员', admin.uid);
+                                showContactInfo(admin ? admin.name : '伊法兰卡', admin ? admin.tag || '管理员' : '管理员', ADMIN_ID);
                             } else if (type === 'friend') {
                                 const friend = allUsersCache.find(u => u.uid === chatId);
                                 if (friend) showContactInfo(friend.name, friend.tag || '无', friend.uid);
@@ -1362,6 +1456,12 @@
 
             // ---------- 管理员面板 ----------
             async function loadAdminPanel() {
+                try {
+                    allUsersCache = await fetchAllUsers();
+                } catch (e) {
+                    console.warn('获取用户列表失败', e);
+                    allUsersCache = [];
+                }
                 const users = allUsersCache;
                 let html = '';
                 users.forEach(u => {
@@ -1500,12 +1600,13 @@
                 scanLine.addEventListener('animationend', function() {
                     startApp();
                 }, { once: true });
+                // 保险：如果动画事件没有触发，2秒后强制启动
                 setTimeout(() => {
                     if (!window.appStarted) {
                         window.appStarted = true;
                         startApp();
                     }
-                }, 1500);
+                }, 2000);
             } else {
                 startApp();
             }
