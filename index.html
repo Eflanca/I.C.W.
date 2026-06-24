@@ -4,17 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
     <title>I.C.W.</title>
-    <!-- 引入 Supabase 客户端库 -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        /* ===== 全局样式与动态特效 ===== */
+        /* ===== 完整样式（与之前一致） ===== */
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
             font-family: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
         }
-
         body {
             min-height: 100vh;
             background: #0b0f17;
@@ -26,8 +24,6 @@
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
         }
-
-        /* 扫描线特效（只播放一次） */
         .scan-line {
             position: fixed;
             top: 0;
@@ -40,13 +36,10 @@
             pointer-events: none;
             z-index: 9999;
         }
-
         @keyframes scan {
             0% { top: -2px; opacity: 0.8; }
             100% { top: 100%; opacity: 0; }
         }
-
-        /* 动态粒子背景 */
         #particles {
             position: fixed;
             top: 0;
@@ -70,8 +63,6 @@
             50% { transform: translateY(-50px) translateX(-10px); }
             75% { transform: translateY(-20px) translateX(20px); }
         }
-
-        /* 主容器 */
         .glass-orb {
             position: relative;
             z-index: 10;
@@ -88,8 +79,6 @@
             display: flex;
             flex-direction: column;
         }
-
-        /* 头部 */
         .app-header {
             padding: 20px 35px;
             display: flex;
@@ -146,15 +135,11 @@
             font-size: 0.7rem;
             margin-left: 8px;
         }
-
-        /* 主布局 */
         .main-layout {
             display: flex;
             flex: 1;
             overflow: hidden;
         }
-
-        /* 侧边栏 */
         .sidebar {
             width: 290px;
             background: rgba(12, 22, 34, 0.5);
@@ -199,8 +184,6 @@
             font-size: 0.8rem;
             color: #8bb4dd;
         }
-
-        /* 联系人列表 */
         .contact-list {
             flex: 1;
             overflow-y: auto;
@@ -261,8 +244,6 @@
             font-size: 0.65rem;
             color: #86a9c9;
         }
-
-        /* 聊天区 */
         .chat-area {
             flex: 1;
             display: flex;
@@ -429,8 +410,6 @@
             justify-content: center;
             flex-shrink: 0;
         }
-
-        /* 模态窗 */
         .modal-overlay {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -497,8 +476,6 @@
             border: 1px solid #4b6e8f;
             color: #cce4ff;
         }
-
-        /* 错误页 */
         .error-container {
             height: 100vh;
             display: flex;
@@ -526,8 +503,6 @@
             padding: 12px;
             border-bottom: 1px solid #2b5580;
         }
-
-        /* 欢迎弹窗 */
         .welcome-modal .modal-card {
             text-align: center;
         }
@@ -537,72 +512,24 @@
             color: #b8dcff;
             word-break: break-word;
         }
-
-        /* 移动端优化 */
         @media (max-width: 768px) {
-            .glass-orb {
-                border-radius: 30px;
-                height: 95vh;
-            }
-            .app-header {
-                padding: 15px 20px;
-            }
-            .logo-icon {
-                width: 40px;
-                height: 40px;
-                font-size: 1.5rem;
-            }
-            .logo-text {
-                font-size: 1.3rem;
-            }
-            .user-badge {
-                padding: 5px 12px;
-                font-size: 0.8rem;
-            }
-            .sidebar {
-                width: 240px;
-                padding-left: 8px;
-            }
-            .profile-card {
-                padding: 12px;
-                gap: 10px;
-            }
-            .avatar {
-                width: 48px;
-                height: 48px;
-                font-size: 2rem;
-            }
-            .contact-item {
-                padding: 10px 12px;
-                gap: 10px;
-            }
-            .chat-header {
-                padding: 15px 20px;
-            }
-            .messages-container {
-                padding: 20px;
-            }
-            .message {
-                max-width: 85%;
-            }
-            .input-area {
-                padding: 15px 20px;
-            }
-            .input-area input {
-                padding: 12px 18px;
-                font-size: 0.9rem;
-            }
-            .send-btn {
-                width: 50px;
-                height: 50px;
-                font-size: 1.2rem;
-            }
-            .modal-card {
-                padding: 30px;
-            }
-            .modal-card h2 {
-                font-size: 1.6rem;
-            }
+            .glass-orb { border-radius: 30px; height: 95vh; }
+            .app-header { padding: 15px 20px; }
+            .logo-icon { width: 40px; height: 40px; font-size: 1.5rem; }
+            .logo-text { font-size: 1.3rem; }
+            .user-badge { padding: 5px 12px; font-size: 0.8rem; }
+            .sidebar { width: 240px; padding-left: 8px; }
+            .profile-card { padding: 12px; gap: 10px; }
+            .avatar { width: 48px; height: 48px; font-size: 2rem; }
+            .contact-item { padding: 10px 12px; gap: 10px; }
+            .chat-header { padding: 15px 20px; }
+            .messages-container { padding: 20px; }
+            .message { max-width: 85%; }
+            .input-area { padding: 15px 20px; }
+            .input-area input { padding: 12px 18px; font-size: 0.9rem; }
+            .send-btn { width: 50px; height: 50px; font-size: 1.2rem; }
+            .modal-card { padding: 30px; }
+            .modal-card h2 { font-size: 1.6rem; }
         }
     </style>
 </head>
@@ -632,7 +559,6 @@
                 <span id="friendRequestBadge" class="friend-request-badge hidden">0</span>
             </div>
         </div>
-
         <div class="main-layout">
             <div class="sidebar">
                 <div class="profile-card" id="profileSummary">
@@ -648,7 +574,6 @@
                     <button class="action-btn" style="width:100%;" id="openFriendSearchBtn">+ 添加好友</button>
                 </div>
             </div>
-
             <div class="chat-area">
                 <div class="chat-header">
                     <span class="chat-title" id="currentChatName">公屏</span>
@@ -792,37 +717,35 @@
             const PUBLIC_ID = "PUBLIC";
             const ADMIN_ID = "0";
 
-            // ---------- 安全编码/解码函数 ----------
+            // ---------- 安全编码/解码 ----------
             function encodeId(id) {
                 if (id === 0) return "0";
-                const step1 = id.toString() + "2077";          // "2" -> "22077"
-                const step2 = BigInt(step1);                   // 22077n
-                const step3 = step2.toString(2);               // "101011000111101"
-                const step4 = BigInt(step3);                   // 101011000111101n
-                const step5 = step4.toString(8);               // "2675716461727775"
-                const step6 = BigInt(step5);                   // 2675716461727775n
-                return step6.toString(16);                     // "9818cc938901f"
+                const step1 = id.toString() + "2077";
+                const step2 = BigInt(step1);
+                const step3 = step2.toString(2);
+                const step4 = BigInt(step3);
+                const step5 = step4.toString(8);
+                const step6 = BigInt(step5);
+                return step6.toString(16);
             }
 
             function decodeId(encoded) {
                 if (encoded === "0") return 0;
                 try {
-                    const step6 = BigInt("0x" + encoded);      // 十六进制转十进制
-                    const step5 = step6.toString(8);           // 十进制转八进制字符串
-                    const step4 = BigInt(step5);               // 八进制字符串转十进制
-                    const step3 = step4.toString(2);           // 十进制转二进制字符串
-                    const step2 = BigInt(step3);               // 二进制字符串转十进制
-                    const step1 = step2.toString();            // 十进制转字符串
+                    const step6 = BigInt("0x" + encoded);
+                    const step5 = step6.toString(8);
+                    const step4 = BigInt(step5);
+                    const step3 = step4.toString(2);
+                    const step2 = BigInt(step3);
+                    const step1 = step2.toString();
                     if (!step1.endsWith("2077")) throw new Error("Invalid encoding");
                     const idStr = step1.slice(0, -4);
                     return parseInt(idStr, 10);
                 } catch (e) {
-                    console.error("解码失败", e);
                     return null;
                 }
             }
 
-            // ---------- 基础路径检测 ----------
             function getBasePath() {
                 const path = window.location.pathname;
                 const lastSlash = path.lastIndexOf('/');
@@ -837,7 +760,7 @@
                 return segments[segments.length - 1];
             }
 
-            // ---------- 云端用户操作 ----------
+            // ---------- 云端操作 ----------
             async function fetchUser(uid) {
                 const { data, error } = await supabase
                     .from('users')
@@ -861,7 +784,6 @@
                 return !error;
             }
 
-            // ---------- 云端消息操作 ----------
             async function fetchMessages(chatId) {
                 const { data, error } = await supabase
                     .from('messages')
@@ -891,7 +813,6 @@
                 return !delError;
             }
 
-            // ---------- 实时订阅 ----------
             let messageSubscription = null;
             function subscribeToChat(chatId, onMessage) {
                 if (messageSubscription) messageSubscription.unsubscribe();
@@ -912,7 +833,7 @@
                     .subscribe();
             }
 
-            // ---------- 全局变量 ----------
+            // ---------- 全局 ----------
             let currentUser = null;
             let currentChatWith = PUBLIC_ID;
             let allUsersCache = [];
@@ -945,6 +866,30 @@
 
                     console.log('解码后UID:', uid);
                     let user = await fetchUser(uid);
+                    // 如果是管理员且云端不存在，则自动创建
+                    if (!user && uid === ADMIN_ID) {
+                        console.log('管理员不存在，自动创建...');
+                        const adminUser = {
+                            uid: ADMIN_ID,
+                            name: '伊法兰卡',
+                            tag: '管理员',
+                            avatar: '👤',
+                            contacts: [PUBLIC_ID],
+                            contact_granted: [],
+                            friends: [],
+                            is_admin: true,
+                            registered: true
+                        };
+                        const success = await upsertUser(adminUser);
+                        if (success) {
+                            user = adminUser;
+                            console.log('管理员创建成功');
+                        } else {
+                            alert('管理员创建失败，请检查数据库权限');
+                            return;
+                        }
+                    }
+
                     if (!user) {
                         document.getElementById('errorPage').classList.remove('hidden');
                         document.getElementById('backToAdminBtn').onclick = () => {
@@ -1532,7 +1477,7 @@
             });
             document.getElementById('adminClose').addEventListener('click', () => document.getElementById('adminModal').classList.add('hidden'));
 
-            // 粒子背景
+            // ---------- 粒子背景 ----------
             (function createParticles() {
                 const container = document.getElementById('particles');
                 for (let i = 0; i < 40; i++) {
