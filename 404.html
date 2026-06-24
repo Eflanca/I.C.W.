@@ -4,15 +4,781 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
     <title>I.C.W.</title>
+    <!-- 引入 Supabase 客户端库 -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        /* 样式与之前完全一致，为节省篇幅此处省略，实际使用时请保留您之前完整的样式 */
-        /* 建议从上一个稳定版本复制完整样式 */
+        /* ===== 全局样式与动态特效 ===== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            background: #0b0f17;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* 扫描线特效（只播放一次） */
+        .scan-line {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #4a90e2, #a0c4ff, #4a90e2, transparent);
+            box-shadow: 0 0 15px #4a90e2;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 9999;
+        }
+
+        @keyframes scan {
+            0% { top: -2px; opacity: 0.8; }
+            100% { top: 100%; opacity: 0; }
+        }
+
+        /* 动态粒子背景 */
+        #particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            pointer-events: none;
+            background: radial-gradient(circle at 30% 40%, #1a2f4a 0%, #0a111f 100%);
+        }
+        .particle {
+            position: absolute;
+            background: rgba(100, 180, 255, 0.15);
+            border-radius: 50%;
+            filter: blur(3px);
+            animation: float 12s infinite ease-in-out;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0) translateX(0); }
+            25% { transform: translateY(-30px) translateX(15px); }
+            50% { transform: translateY(-50px) translateX(-10px); }
+            75% { transform: translateY(-20px) translateX(20px); }
+        }
+
+        /* 主容器 */
+        .glass-orb {
+            position: relative;
+            z-index: 10;
+            width: 100%;
+            max-width: 1300px;
+            height: 90vh;
+            background: rgba(18, 28, 40, 0.55);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            border-radius: 60px;
+            border: 1px solid rgba(100, 180, 255, 0.25);
+            box-shadow: 0 50px 100px -20px rgba(0,0,0,0.7);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 头部 */
+        .app-header {
+            padding: 20px 35px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid rgba(100, 180, 255, 0.2);
+            background: rgba(8, 16, 26, 0.4);
+            backdrop-filter: blur(10px);
+        }
+        .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .logo-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(145deg, #2b7cff, #00b0ff);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 1.8rem;
+        }
+        .logo-text {
+            font-weight: 600;
+            font-size: 1.6rem;
+            color: #e0f0ff;
+        }
+        .user-badge {
+            background: rgba(10, 25, 40, 0.7);
+            backdrop-filter: blur(15px);
+            border-radius: 40px;
+            padding: 8px 20px 8px 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border: 1px solid rgba(100, 180, 255, 0.3);
+            color: #e2f0ff;
+        }
+        .user-badge .uid {
+            background: #1e3b5e;
+            padding: 4px 12px;
+            border-radius: 30px;
+            font-family: monospace;
+        }
+        .friend-request-badge {
+            background: #ff4d4d;
+            color: white;
+            border-radius: 20px;
+            padding: 2px 8px;
+            font-size: 0.7rem;
+            margin-left: 8px;
+        }
+
+        /* 主布局 */
+        .main-layout {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* 侧边栏 */
+        .sidebar {
+            width: 290px;
+            background: rgba(12, 22, 34, 0.5);
+            backdrop-filter: blur(20px);
+            border-right: 1px solid rgba(100, 180, 255, 0.15);
+            display: flex;
+            flex-direction: column;
+            padding: 20px 0 20px 16px;
+        }
+        .profile-card {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 18px 20px;
+            background: rgba(30, 50, 70, 0.4);
+            border-radius: 36px;
+            margin-right: 16px;
+            border: 1px solid rgba(100, 180, 255, 0.2);
+            cursor: pointer;
+            transition: 0.25s;
+        }
+        .profile-card:hover {
+            background: rgba(40, 70, 100, 0.5);
+        }
+        .avatar {
+            width: 56px;
+            height: 56px;
+            border-radius: 28px;
+            background: linear-gradient(145deg, #2b4b70, #1c3550);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.2rem;
+            color: #b8dcff;
+            border: 2px solid rgba(255,255,255,0.15);
+        }
+        .profile-info h4 {
+            font-weight: 600;
+            color: #e0f0ff;
+        }
+        .profile-info p {
+            font-size: 0.8rem;
+            color: #8bb4dd;
+        }
+
+        /* 联系人列表 */
+        .contact-list {
+            flex: 1;
+            overflow-y: auto;
+            margin-top: 20px;
+            padding-right: 8px;
+        }
+        .contact-category {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            color: #6b93b5;
+            padding: 16px 0 6px 12px;
+        }
+        .contact-item {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 12px 18px;
+            border-radius: 34px;
+            margin-right: 8px;
+            transition: 0.2s;
+            cursor: pointer;
+            color: #d0e6ff;
+            border: 1px solid transparent;
+        }
+        .contact-item.active {
+            background: rgba(40, 80, 120, 0.5);
+            border-color: #4a9eff;
+        }
+        .contact-item:hover {
+            background: rgba(50, 90, 140, 0.4);
+        }
+        .contact-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 20px;
+            background: linear-gradient(145deg, #2a4970, #1a314a);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .contact-avatar:hover {
+            transform: scale(1.05);
+            border-color: #4a9eff;
+        }
+        .contact-info {
+            flex: 1;
+        }
+        .contact-name {
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .contact-tag {
+            font-size: 0.65rem;
+            color: #86a9c9;
+        }
+
+        /* 聊天区 */
+        .chat-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: rgba(8, 18, 28, 0.3);
+        }
+        .chat-header {
+            padding: 20px 35px;
+            background: rgba(8, 18, 28, 0.5);
+            border-bottom: 1px solid rgba(100, 180, 255, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .chat-title {
+            font-weight: 600;
+            font-size: 1.4rem;
+            color: #d8ecff;
+        }
+        .chat-actions {
+            display: flex;
+            gap: 12px;
+        }
+        .action-btn {
+            background: rgba(20, 45, 70, 0.7);
+            border: 1px solid #2b6a9e;
+            padding: 8px 20px;
+            border-radius: 40px;
+            font-size: 0.85rem;
+            color: #c0e4ff;
+            cursor: pointer;
+            transition: 0.2s;
+            min-height: 40px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .action-btn:hover {
+            background: #1b4c7a;
+        }
+        .messages-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+        .message {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            max-width: 70%;
+            animation: fadeIn 0.3s;
+            position: relative;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .message.own {
+            align-self: flex-end;
+            flex-direction: row-reverse;
+        }
+        .message-avatar {
+            width: 42px;
+            height: 42px;
+            border-radius: 21px;
+            background: linear-gradient(145deg, #2e4c75, #1d334d);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            flex-shrink: 0;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .message-avatar:hover {
+            transform: scale(1.05);
+            border-color: #4a9eff;
+        }
+        .message-bubble {
+            background: rgba(30, 50, 75, 0.7);
+            padding: 14px 20px;
+            border-radius: 28px;
+            border: 1px solid #2b5580;
+            color: #e2f0ff;
+            word-break: break-word;
+            position: relative;
+            flex: 1;
+        }
+        .message.own .message-bubble {
+            background: #1a3d62;
+            border-color: #4a9eff;
+        }
+        .message-sender {
+            font-size: 0.7rem;
+            color: #9acdff;
+            margin-bottom: 4px;
+            font-weight: 500;
+        }
+        .message-time {
+            font-size: 0.65rem;
+            color: #6f96b5;
+            margin-top: 6px;
+            text-align: right;
+        }
+        .delete-msg-btn {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: rgba(255, 80, 80, 0.9);
+            color: white;
+            border: none;
+            font-size: 1rem;
+            line-height: 1;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            transition: 0.2s;
+        }
+        .delete-msg-btn:hover {
+            background: #ff4d4d;
+            transform: scale(1.1);
+        }
+        .input-area {
+            padding: 20px 35px;
+            background: rgba(8, 18, 28, 0.6);
+            border-top: 1px solid rgba(100, 180, 255, 0.15);
+            display: flex;
+            gap: 16px;
+        }
+        .input-area input {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid #2b5580;
+            border-radius: 50px;
+            padding: 16px 25px;
+            font-size: 1rem;
+            color: #f0f8ff;
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+        .input-area input:focus {
+            border-color: #7abcff;
+        }
+        .send-btn {
+            width: 60px;
+            height: 60px;
+            border-radius: 40px;
+            background: linear-gradient(145deg, #2b7cff, #0055cc);
+            border: none;
+            color: white;
+            font-size: 1.4rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        /* 模态窗 */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 10, 20, 0.7);
+            backdrop-filter: blur(15px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            padding: 16px;
+        }
+        .modal-card {
+            background: rgba(18, 30, 45, 0.8);
+            backdrop-filter: blur(35px);
+            border-radius: 60px;
+            width: 90%;
+            max-width: 500px;
+            padding: 40px;
+            border: 1px solid rgba(100, 180, 255, 0.4);
+            color: #e0f0ff;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .modal-card h2 {
+            font-weight: 600;
+            font-size: 2rem;
+            margin-bottom: 20px;
+            color: #b8dcff;
+        }
+        .modal-input {
+            width: 100%;
+            padding: 16px 22px;
+            border-radius: 50px;
+            border: 1px solid #2b5580;
+            background: rgba(0, 0, 0, 0.25);
+            font-size: 1rem;
+            margin: 10px 0;
+            color: white;
+            outline: none;
+        }
+        .modal-input:focus {
+            border-color: #7abcff;
+        }
+        .modal-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: flex-end;
+            margin-top: 30px;
+            flex-wrap: wrap;
+        }
+        .modal-btn {
+            padding: 12px 28px;
+            border-radius: 40px;
+            border: none;
+            background: #2b7cff;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            min-height: 44px;
+            font-size: 1rem;
+        }
+        .modal-btn.secondary {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid #4b6e8f;
+            color: #cce4ff;
+        }
+
+        /* 错误页 */
+        .error-container {
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #0b0f17;
+            padding: 20px;
+        }
+        .error-card {
+            background: rgba(20, 30, 45, 0.8);
+            backdrop-filter: blur(25px);
+            border-radius: 50px;
+            padding: 40px;
+            text-align: center;
+            color: #b8dcff;
+            border: 1px solid #2b5580;
+        }
+        .hidden {
+            display: none !important;
+        }
+        .friend-request-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            border-bottom: 1px solid #2b5580;
+        }
+
+        /* 欢迎弹窗 */
+        .welcome-modal .modal-card {
+            text-align: center;
+        }
+        .welcome-message {
+            font-size: 2rem;
+            margin: 20px 0;
+            color: #b8dcff;
+            word-break: break-word;
+        }
+
+        /* 移动端优化 */
+        @media (max-width: 768px) {
+            .glass-orb {
+                border-radius: 30px;
+                height: 95vh;
+            }
+            .app-header {
+                padding: 15px 20px;
+            }
+            .logo-icon {
+                width: 40px;
+                height: 40px;
+                font-size: 1.5rem;
+            }
+            .logo-text {
+                font-size: 1.3rem;
+            }
+            .user-badge {
+                padding: 5px 12px;
+                font-size: 0.8rem;
+            }
+            .sidebar {
+                width: 240px;
+                padding-left: 8px;
+            }
+            .profile-card {
+                padding: 12px;
+                gap: 10px;
+            }
+            .avatar {
+                width: 48px;
+                height: 48px;
+                font-size: 2rem;
+            }
+            .contact-item {
+                padding: 10px 12px;
+                gap: 10px;
+            }
+            .chat-header {
+                padding: 15px 20px;
+            }
+            .messages-container {
+                padding: 20px;
+            }
+            .message {
+                max-width: 85%;
+            }
+            .input-area {
+                padding: 15px 20px;
+            }
+            .input-area input {
+                padding: 12px 18px;
+                font-size: 0.9rem;
+            }
+            .send-btn {
+                width: 50px;
+                height: 50px;
+                font-size: 1.2rem;
+            }
+            .modal-card {
+                padding: 30px;
+            }
+            .modal-card h2 {
+                font-size: 1.6rem;
+            }
+        }
     </style>
 </head>
 <body>
-    <!-- HTML 结构保持不变（与上一版完全一致），此处省略以节省篇幅 -->
-    <!-- 实际使用时请保留所有模态框和主容器结构 -->
+    <div class="scan-line" id="scanLine"></div>
+    <div id="particles"></div>
+
+    <!-- 错误页面 -->
+    <div id="errorPage" class="error-container hidden">
+        <div class="error-card">
+            <h1>🔗 无效的链接</h1>
+            <p style="margin: 20px 0;">该用户编号不存在</p>
+            <button class="modal-btn" id="backToAdminBtn">返回管理员</button>
+        </div>
+    </div>
+
+    <!-- 主应用 -->
+    <div id="mainApp" class="glass-orb hidden">
+        <div class="app-header">
+            <div class="logo-area">
+                <div class="logo-icon">ICW</div>
+                <span class="logo-text">I.C.W.</span>
+            </div>
+            <div class="user-badge" id="headerUserBadge">
+                <span id="headerName">加载中</span>
+                <span class="uid" id="headerUid">#0</span>
+                <span id="friendRequestBadge" class="friend-request-badge hidden">0</span>
+            </div>
+        </div>
+
+        <div class="main-layout">
+            <div class="sidebar">
+                <div class="profile-card" id="profileSummary">
+                    <div class="avatar" id="myAvatar">👤</div>
+                    <div class="profile-info">
+                        <h4 id="myName">用户名</h4>
+                        <p id="myTag">标签</p>
+                    </div>
+                </div>
+                <div class="contact-list" id="contactList"></div>
+                <div style="padding: 0 16px 16px 0;" id="adminButtonContainer"></div>
+                <div style="padding: 0 16px 16px 0;">
+                    <button class="action-btn" style="width:100%;" id="openFriendSearchBtn">+ 添加好友</button>
+                </div>
+            </div>
+
+            <div class="chat-area">
+                <div class="chat-header">
+                    <span class="chat-title" id="currentChatName">公屏</span>
+                    <div class="chat-actions" id="chatActions"></div>
+                </div>
+                <div class="messages-container" id="messageList"></div>
+                <div class="input-area">
+                    <input type="text" id="messageInput" placeholder="键入消息...">
+                    <button class="send-btn" id="sendMsg">➤</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 密码验证模态 -->
+    <div id="passwordModal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <h2>管理员验证</h2>
+            <input type="password" id="adminPassword" class="modal-input" placeholder="输入安全密码">
+            <div class="modal-buttons">
+                <button class="modal-btn" id="submitAdminPassword">确认</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 首次注册模态 -->
+    <div id="registerModal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <h2>📇 首次使用</h2>
+            <p>UID: <span id="regUid"></span></p>
+            <input type="text" id="regName" class="modal-input" placeholder="输入你的称谓" maxlength="20">
+            <input type="text" id="regTag" class="modal-input" placeholder="标签 (可选)" maxlength="30">
+            <div class="modal-buttons">
+                <button class="modal-btn" id="registerConfirm">完成注册</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 个人信息编辑模态 -->
+    <div id="profileModal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <h2>个人信息</h2>
+            <p>UID: <span id="profileUid"></span></p>
+            <input type="text" id="profileName" class="modal-input" placeholder="称谓">
+            <input type="text" id="profileTag" class="modal-input" placeholder="标签">
+            <div class="modal-buttons">
+                <button class="modal-btn" id="saveProfile">保存</button>
+                <button class="modal-btn secondary" id="closeProfile">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 查看联系人信息模态 -->
+    <div id="contactInfoModal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <h2>联系人信息</h2>
+            <p>称谓: <span id="contactName"></span></p>
+            <p>标签: <span id="contactTag"></span></p>
+            <p>UID: <span id="contactUid"></span></p>
+            <div class="modal-buttons">
+                <button class="modal-btn secondary" id="closeContactInfo">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 管理员面板 -->
+    <div id="adminModal" class="modal-overlay hidden">
+        <div class="modal-card" style="max-width:650px;">
+            <h2>⚙ 管理控制台</h2>
+            <div style="margin:20px 0;">
+                <button class="modal-btn" id="createUserBtn">➕ 新增用户（仅生成编号）</button>
+            </div>
+            <div style="max-height:300px; overflow-y:auto; background: rgba(0,0,0,0.2); border-radius: 30px; padding: 15px;">
+                <h3>所有用户</h3>
+                <div id="userListAdmin"></div>
+            </div>
+            <div style="margin-top:16px;">
+                <h3>待处理联系申请</h3>
+                <div id="pendingContactList" style="max-height:150px; overflow-y:auto;"></div>
+            </div>
+            <div class="modal-buttons">
+                <button class="modal-btn secondary" id="adminClose">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 新增用户结果模态 -->
+    <div id="newUserResultModal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <h2>✅ 用户编号已生成</h2>
+            <p id="newUserResult" style="font-size:1.2rem; margin:20px 0;"></p>
+            <div class="modal-buttons">
+                <button class="modal-btn" id="closeNewUserResult">确定</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加好友模态 -->
+    <div id="friendSearchModal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <h2>添加好友</h2>
+            <input type="text" id="friendSearchInput" class="modal-input" placeholder="输入 UID 或称谓">
+            <div id="friendSearchResults" style="max-height:200px; overflow-y:auto; margin:15px 0;"></div>
+            <div class="modal-buttons">
+                <button class="modal-btn secondary" id="closeFriendSearch">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 好友申请列表模态 -->
+    <div id="friendRequestsModal" class="modal-overlay hidden">
+        <div class="modal-card" style="max-width:550px;">
+            <h2>好友申请</h2>
+            <div id="friendRequestsList" style="max-height:300px; overflow-y:auto; margin:20px 0;"></div>
+            <div class="modal-buttons">
+                <button class="modal-btn secondary" id="closeFriendRequests">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 欢迎弹窗 -->
+    <div id="welcomeModal" class="modal-overlay hidden welcome-modal">
+        <div class="modal-card">
+            <h2>👋 欢迎</h2>
+            <div class="welcome-message" id="welcomeMessage"></div>
+            <div class="modal-buttons">
+                <button class="modal-btn" id="closeWelcome">开始使用</button>
+            </div>
+        </div>
+    </div>
 
     <script>
         (function() {
@@ -26,7 +792,7 @@
             const PUBLIC_ID = "PUBLIC";
             const ADMIN_ID = "0";
 
-            // ---------- 编码/解码函数（安全转换）----------
+            // ---------- 安全编码/解码函数 ----------
             function encodeId(id) {
                 if (id === 0) return "0";
                 const step1 = id.toString() + "2077";          // "2" -> "22077"
@@ -59,13 +825,11 @@
             // ---------- 基础路径检测 ----------
             function getBasePath() {
                 const path = window.location.pathname;
-                // 匹配路径中最后一个斜杠之前的部分（包括斜杠）
                 const lastSlash = path.lastIndexOf('/');
                 if (lastSlash === -1) return '/';
                 return path.substring(0, lastSlash + 1);
             }
 
-            // 从路径中提取最后一段（可能是编码后的ID）
             function getEncodedFromPath() {
                 const path = window.location.pathname;
                 const segments = path.split('/').filter(s => s.length > 0);
@@ -73,7 +837,7 @@
                 return segments[segments.length - 1];
             }
 
-            // ---------- 云端用户操作（与之前相同）----------
+            // ---------- 云端用户操作 ----------
             async function fetchUser(uid) {
                 const { data, error } = await supabase
                     .from('users')
@@ -97,7 +861,7 @@
                 return !error;
             }
 
-            // ---------- 云端消息操作（与之前相同）----------
+            // ---------- 云端消息操作 ----------
             async function fetchMessages(chatId) {
                 const { data, error } = await supabase
                     .from('messages')
@@ -153,14 +917,13 @@
             let currentChatWith = PUBLIC_ID;
             let allUsersCache = [];
 
-            // ---------- 启动应用（核心路由修改）----------
+            // ---------- 启动应用 ----------
             async function startApp() {
                 console.log('startApp 开始执行');
                 try {
                     const encoded = getEncodedFromPath();
                     console.log('路径编码:', encoded);
                     if (!encoded) {
-                        // 没有路径段，重定向到管理员
                         window.location.href = getBasePath() + "0";
                         return;
                     }
@@ -171,7 +934,6 @@
                     } else {
                         const decoded = decodeId(encoded);
                         if (decoded === null) {
-                            // 编码无效，显示错误页
                             document.getElementById('errorPage').classList.remove('hidden');
                             document.getElementById('backToAdminBtn').onclick = () => {
                                 window.location.href = getBasePath() + "0";
@@ -184,7 +946,6 @@
                     console.log('解码后UID:', uid);
                     let user = await fetchUser(uid);
                     if (!user) {
-                        // 用户不存在，显示错误页
                         document.getElementById('errorPage').classList.remove('hidden');
                         document.getElementById('backToAdminBtn').onclick = () => {
                             window.location.href = getBasePath() + "0";
@@ -193,7 +954,6 @@
                     }
 
                     if (!user.registered) {
-                        // 未注册，显示注册模态
                         document.getElementById('regUid').innerText = uid;
                         document.getElementById('registerModal').classList.remove('hidden');
                         document.getElementById('registerConfirm').onclick = async () => {
@@ -272,7 +1032,7 @@
                 };
             }
 
-            // ---------- 渲染主界面（与之前相同，但注意好友列表过滤管理员）----------
+            // ---------- 渲染主界面 ----------
             async function renderMainApp() {
                 if (!currentUser) return;
                 document.getElementById('headerName').innerText = currentUser.name;
@@ -480,7 +1240,7 @@
                 }
             }
 
-            // ---------- 好友系统（与之前相同，仅调整表字段名）----------
+            // ---------- 好友系统 ----------
             async function requestContact() {
                 const { data: existing } = await supabase
                     .from('contact_requests')
@@ -772,7 +1532,7 @@
             });
             document.getElementById('adminClose').addEventListener('click', () => document.getElementById('adminModal').classList.add('hidden'));
 
-            // 粒子背景（与之前相同）
+            // 粒子背景
             (function createParticles() {
                 const container = document.getElementById('particles');
                 for (let i = 0; i < 40; i++) {
@@ -787,7 +1547,7 @@
                 }
             })();
 
-            // ---------- 启动流程（扫描线动画）----------
+            // ---------- 启动流程 ----------
             const scanLine = document.getElementById('scanLine');
             if (scanLine) {
                 scanLine.style.opacity = '1';
