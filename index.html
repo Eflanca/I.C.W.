@@ -4,8 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
     <title>I.C.W.</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">
-    </script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         /* ===== 完整样式 ===== */
         * {
@@ -38,14 +37,8 @@
             z-index: 9999;
         }
         @keyframes scan {
-            0% {
-                top: -2px;
-                opacity: 0.8;
-            }
-            100% {
-                top: 100%;
-                opacity: 0;
-            }
+            0% { top: -2px; opacity: 0.8; }
+            100% { top: 100%; opacity: 0; }
         }
         #particles {
             position: fixed;
@@ -65,19 +58,10 @@
             animation: float 12s infinite ease-in-out;
         }
         @keyframes float {
-            0%,
-            100% {
-                transform: translateY(0) translateX(0);
-            }
-            25% {
-                transform: translateY(-30px) translateX(15px);
-            }
-            50% {
-                transform: translateY(-50px) translateX(-10px);
-            }
-            75% {
-                transform: translateY(-20px) translateX(20px);
-            }
+            0%, 100% { transform: translateY(0) translateX(0); }
+            25% { transform: translateY(-30px) translateX(15px); }
+            50% { transform: translateY(-50px) translateX(-10px); }
+            75% { transform: translateY(-20px) translateX(20px); }
         }
         .glass-orb {
             position: relative;
@@ -90,7 +74,7 @@
             -webkit-backdrop-filter: blur(25px);
             border-radius: 60px;
             border: 1px solid rgba(100, 180, 255, 0.25);
-            box-shadow: 0 50px 100px -20px rgba(0, 0, 0, 0.7);
+            box-shadow: 0 50px 100px -20px rgba(0,0,0,0.7);
             overflow: hidden;
             display: flex;
             flex-direction: column;
@@ -190,7 +174,7 @@
             justify-content: center;
             font-size: 2.2rem;
             color: #b8dcff;
-            border: 2px solid rgba(255, 255, 255, 0.15);
+            border: 2px solid rgba(255,255,255,0.15);
         }
         .profile-info h4 {
             font-weight: 600;
@@ -317,14 +301,8 @@
             position: relative;
         }
         @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(8px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
         }
         .message.own {
             align-self: flex-end;
@@ -389,7 +367,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
             transition: 0.2s;
         }
         .delete-msg-btn:hover {
@@ -434,10 +412,7 @@
         }
         .modal-overlay {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0, 10, 20, 0.7);
             backdrop-filter: blur(15px);
             display: flex;
@@ -497,7 +472,7 @@
             font-size: 1rem;
         }
         .modal-btn.secondary {
-            background: rgba(255, 255, 255, 0.05);
+            background: rgba(255,255,255,0.05);
             border: 1px solid #4b6e8f;
             color: #cce4ff;
         }
@@ -537,8 +512,6 @@
             color: #b8dcff;
             word-break: break-word;
         }
-
-        /* 加载提示 */
         #loadingIndicator {
             position: fixed;
             top: 50%;
@@ -557,71 +530,24 @@
         #loadingIndicator.show {
             display: block;
         }
-
         @media (max-width: 768px) {
-            .glass-orb {
-                border-radius: 30px;
-                height: 95vh;
-            }
-            .app-header {
-                padding: 15px 20px;
-            }
-            .logo-icon {
-                width: 40px;
-                height: 40px;
-                font-size: 1.5rem;
-            }
-            .logo-text {
-                font-size: 1.3rem;
-            }
-            .user-badge {
-                padding: 5px 12px;
-                font-size: 0.8rem;
-            }
-            .sidebar {
-                width: 240px;
-                padding-left: 8px;
-            }
-            .profile-card {
-                padding: 12px;
-                gap: 10px;
-            }
-            .avatar {
-                width: 48px;
-                height: 48px;
-                font-size: 2rem;
-            }
-            .contact-item {
-                padding: 10px 12px;
-                gap: 10px;
-            }
-            .chat-header {
-                padding: 15px 20px;
-            }
-            .messages-container {
-                padding: 20px;
-            }
-            .message {
-                max-width: 85%;
-            }
-            .input-area {
-                padding: 15px 20px;
-            }
-            .input-area input {
-                padding: 12px 18px;
-                font-size: 0.9rem;
-            }
-            .send-btn {
-                width: 50px;
-                height: 50px;
-                font-size: 1.2rem;
-            }
-            .modal-card {
-                padding: 30px;
-            }
-            .modal-card h2 {
-                font-size: 1.6rem;
-            }
+            .glass-orb { border-radius: 30px; height: 95vh; }
+            .app-header { padding: 15px 20px; }
+            .logo-icon { width: 40px; height: 40px; font-size: 1.5rem; }
+            .logo-text { font-size: 1.3rem; }
+            .user-badge { padding: 5px 12px; font-size: 0.8rem; }
+            .sidebar { width: 240px; padding-left: 8px; }
+            .profile-card { padding: 12px; gap: 10px; }
+            .avatar { width: 48px; height: 48px; font-size: 2rem; }
+            .contact-item { padding: 10px 12px; gap: 10px; }
+            .chat-header { padding: 15px 20px; }
+            .messages-container { padding: 20px; }
+            .message { max-width: 85%; }
+            .input-area { padding: 15px 20px; }
+            .input-area input { padding: 12px 18px; font-size: 0.9rem; }
+            .send-btn { width: 50px; height: 50px; font-size: 1.2rem; }
+            .modal-card { padding: 30px; }
+            .modal-card h2 { font-size: 1.6rem; }
         }
     </style>
 </head>
@@ -800,7 +726,9 @@
 
     <script>
         (function() {
-            // ---------- Supabase 配置 (已更新为您的新项目) ----------
+            // ============================================================
+            //  Supabase 配置 — 已替换为你的新项目信息
+            // ============================================================
             const SUPABASE_URL = 'https://rvpqesfwiwceokaphggh.supabase.co';
             const SUPABASE_ANON_KEY = 'sb_publishable_fVBYNNUHyWKZv_VszftKWA_UbN4huVD';
             const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -907,7 +835,6 @@
             }
 
             let messageSubscription = null;
-
             function subscribeToChat(chatId, onMessage) {
                 if (messageSubscription) messageSubscription.unsubscribe();
                 messageSubscription = supabase
@@ -1153,21 +1080,21 @@
 
                 const friends = currentUser.friends || [];
                 let html = `
-                        <div class="contact-category">📢 公共</div>
-                        <div class="contact-item ${currentChatWith === PUBLIC_ID ? 'active' : ''}" data-chatid="${PUBLIC_ID}" data-type="public">
-                            <div class="contact-avatar">🌐</div>
-                            <div class="contact-info"><div class="contact-name">公屏</div></div>
-                        </div>
-                    `;
+                    <div class="contact-category">📢 公共</div>
+                    <div class="contact-item ${currentChatWith === PUBLIC_ID ? 'active' : ''}" data-chatid="${PUBLIC_ID}" data-type="public">
+                        <div class="contact-avatar">🌐</div>
+                        <div class="contact-info"><div class="contact-name">公屏</div></div>
+                    </div>
+                `;
 
                 if (currentUser.uid !== ADMIN_ID) {
                     html += `
-                            <div class="contact-category">🔷 伊法兰卡</div>
-                            <div class="contact-item ${currentChatWith === ADMIN_ID ? 'active' : ''}" data-chatid="${ADMIN_ID}" data-type="admin">
-                                <div class="contact-avatar">👑</div>
-                                <div class="contact-info"><div class="contact-name">伊法兰卡</div></div>
-                            </div>
-                        `;
+                        <div class="contact-category">🔷 伊法兰卡</div>
+                        <div class="contact-item ${currentChatWith === ADMIN_ID ? 'active' : ''}" data-chatid="${ADMIN_ID}" data-type="admin">
+                            <div class="contact-avatar">👑</div>
+                            <div class="contact-info"><div class="contact-name">伊法兰卡</div></div>
+                        </div>
+                    `;
                 }
 
                 if (friends.length > 0) {
@@ -1177,12 +1104,12 @@
                         const friend = allUsersCache.find(u => u.uid === fuid);
                         if (friend) {
                             html += `<div class="contact-item ${currentChatWith === fuid ? 'active' : ''}" data-chatid="${fuid}" data-type="friend">
-                                    <div class="contact-avatar">👤</div>
-                                    <div class="contact-info">
-                                        <div class="contact-name">${friend.name}</div>
-                                        <div class="contact-tag">${friend.tag || ''}</div>
-                                    </div>
-                                </div>`;
+                                <div class="contact-avatar">👤</div>
+                                <div class="contact-info">
+                                    <div class="contact-name">${friend.name}</div>
+                                    <div class="contact-tag">${friend.tag || ''}</div>
+                                </div>
+                            </div>`;
                         }
                     });
                 }
@@ -1205,8 +1132,7 @@
                                 showContactInfo('公屏', '公共聊天室', PUBLIC_ID);
                             } else if (type === 'admin') {
                                 const admin = allUsersCache.find(u => u.uid === ADMIN_ID);
-                                showContactInfo(admin ? admin.name : '伊法兰卡', admin ? admin.tag || '管理员' :
-                                    '管理员', ADMIN_ID);
+                                showContactInfo(admin ? admin.name : '伊法兰卡', admin ? admin.tag || '管理员' : '管理员', ADMIN_ID);
                             } else if (type === 'friend') {
                                 const friend = allUsersCache.find(u => u.uid === chatId);
                                 if (friend) showContactInfo(friend.name, friend.tag || '无', friend.uid);
@@ -1217,8 +1143,7 @@
 
                 const adminBtnContainer = document.getElementById('adminButtonContainer');
                 if (currentUser.is_admin) {
-                    adminBtnContainer.innerHTML =
-                        `<button class="action-btn" style="width:100%;" id="adminPanelBtn">⚙ 管理控制台</button>`;
+                    adminBtnContainer.innerHTML = `<button class="action-btn" style="width:100%;" id="adminPanelBtn">⚙ 管理控制台</button>`;
                     document.getElementById('adminPanelBtn').addEventListener('click', () => {
                         loadAdminPanel();
                         document.getElementById('adminModal').classList.remove('hidden');
@@ -1264,16 +1189,16 @@
                     const sender = allUsersCache.find(u => u.uid === msg.sender);
                     const senderName = sender ? sender.name : msg.sender;
                     html += `
-                            <div class="message ${isOwn ? 'own' : ''}" data-msg-index="${index}">
-                                <div class="message-avatar" data-sender="${msg.sender}">👤</div>
-                                <div class="message-bubble">
-                                    <div class="message-sender">${senderName}</div>
-                                    <div>${msg.text}</div>
-                                    <div class="message-time">${msg.time}</div>
-                                    ${currentUser.is_admin ? `<button class="delete-msg-btn" data-chatid="${chatId}" data-index="${index}">✕</button>` : ''}
-                                </div>
+                        <div class="message ${isOwn ? 'own' : ''}" data-msg-index="${index}">
+                            <div class="message-avatar" data-sender="${msg.sender}">👤</div>
+                            <div class="message-bubble">
+                                <div class="message-sender">${senderName}</div>
+                                <div>${msg.text}</div>
+                                <div class="message-time">${msg.time}</div>
+                                ${currentUser.is_admin ? `<button class="delete-msg-btn" data-chatid="${chatId}" data-index="${index}">✕</button>` : ''}
                             </div>
-                        `;
+                        </div>
+                    `;
                 });
                 container.innerHTML = html || '<div style="text-align:center; color:#6b8ba0; padding:30px;">暂无消息</div>';
                 container.scrollTop = container.scrollHeight;
@@ -1286,8 +1211,7 @@
                             showContactInfo('公屏', '公共聊天室', PUBLIC_ID);
                             return;
                         }
-                        const sender = allUsersCache.find(u => u.uid === senderUid) || await fetchUser(
-                        senderUid);
+                        const sender = allUsersCache.find(u => u.uid === senderUid) || await fetchUser(senderUid);
                         if (sender) {
                             showContactInfo(sender.name, sender.tag || '无', sender.uid);
                         }
@@ -1301,8 +1225,7 @@
                             const chatId = btn.dataset.chatid;
                             const index = parseInt(btn.dataset.index, 10);
                             if (confirm('确定删除此消息？')) {
-                                const chatIdForStorage = chatId === PUBLIC_ID ? PUBLIC_ID :
-                                    getPrivateChatId(currentUser.uid, chatId);
+                                const chatIdForStorage = chatId === PUBLIC_ID ? PUBLIC_ID : getPrivateChatId(currentUser.uid, chatId);
                                 const success = await deleteMessageFromCloud(chatIdForStorage, index);
                                 if (success) await loadMessages(chatId);
                                 else alert('删除失败');
@@ -1325,8 +1248,7 @@
                             addActionButton('📞 申请联系', requestContact);
                         } else {
                             addActionButton('📞 拨打电话', () => window.location.href = 'tel:+8615986785788');
-                            addActionButton('💬 QQ', () => window.open('https://qm.qq.com/q/JObrZqjBqS',
-                                '_blank'));
+                            addActionButton('💬 QQ', () => window.open('https://qm.qq.com/q/JObrZqjBqS', '_blank'));
                         }
                     }
                 } else {
@@ -1370,18 +1292,17 @@
             document.getElementById('friendSearchInput').addEventListener('input', (e) => {
                 const query = e.target.value.trim();
                 if (!query) { document.getElementById('friendSearchResults').innerHTML = ''; return; }
-                const users = allUsersCache.filter(u => u.uid !== currentUser.uid && u.uid !== ADMIN_ID && u.uid !==
-                    PUBLIC_ID && u.registered === true);
+                const users = allUsersCache.filter(u => u.uid !== currentUser.uid && u.uid !== ADMIN_ID && u.uid !== PUBLIC_ID && u.registered === true);
                 const results = users.filter(u => u.uid.includes(query) || (u.name && u.name.includes(query)));
                 let html = '';
                 results.forEach(u => {
                     const alreadyFriend = (currentUser.friends || []).includes(u.uid);
                     html += `
-                            <div style="display:flex; justify-content:space-between; align-items:center; padding:8px; border-bottom:1px solid #2b5580;">
-                                <span>${u.name} (${u.uid})</span>
-                                ${!alreadyFriend ? `<button class="action-btn" data-send="${u.uid}">发送申请</button>` : `<span style="color:#6b8ba0;">已是好友</span>`}
-                            </div>
-                        `;
+                        <div style="display:flex; justify-content:space-between; align-items:center; padding:8px; border-bottom:1px solid #2b5580;">
+                            <span>${u.name} (${u.uid})</span>
+                            ${!alreadyFriend ? `<button class="action-btn" data-send="${u.uid}">发送申请</button>` : `<span style="color:#6b8ba0;">已是好友</span>`}
+                        </div>
+                    `;
                 });
                 document.getElementById('friendSearchResults').innerHTML = html || '无匹配用户';
                 document.querySelectorAll('[data-send]').forEach(btn => {
@@ -1389,8 +1310,7 @@
                         const toUid = e.target.dataset.send;
                         await supabase
                             .from('friend_requests')
-                            .insert([{ from_uid: currentUser.uid, to_uid: toUid, status: 'pending',
-                                time: new Date().toISOString() }]);
+                            .insert([{ from_uid: currentUser.uid, to_uid: toUid, status: 'pending', time: new Date().toISOString() }]);
                         alert('好友申请已发送');
                         document.getElementById('friendSearchInput').value = '';
                         document.getElementById('friendSearchResults').innerHTML = '';
@@ -1417,14 +1337,14 @@
                     reqs.forEach((req, idx) => {
                         const fromUser = allUsersCache.find(u => u.uid === req.from_uid);
                         html += `
-                                <div class="friend-request-item">
-                                    <span>${fromUser ? fromUser.name : req.from_uid} 想要添加你为好友</span>
-                                    <div>
-                                        <button class="action-btn" data-accept="${req.id}">同意</button>
-                                        <button class="action-btn" data-reject="${req.id}">拒绝</button>
-                                    </div>
+                            <div class="friend-request-item">
+                                <span>${fromUser ? fromUser.name : req.from_uid} 想要添加你为好友</span>
+                                <div>
+                                    <button class="action-btn" data-accept="${req.id}">同意</button>
+                                    <button class="action-btn" data-reject="${req.id}">拒绝</button>
                                 </div>
-                            `;
+                            </div>
+                        `;
                     });
                     listDiv.innerHTML = html;
 
@@ -1438,13 +1358,11 @@
                                 .single();
                             if (req && req.to_uid === currentUser.uid) {
                                 if (!currentUser.friends) currentUser.friends = [];
-                                if (!currentUser.friends.includes(req.from_uid)) currentUser.friends
-                                    .push(req.from_uid);
+                                if (!currentUser.friends.includes(req.from_uid)) currentUser.friends.push(req.from_uid);
                                 const fromUser = allUsersCache.find(u => u.uid === req.from_uid);
                                 if (fromUser) {
                                     if (!fromUser.friends) fromUser.friends = [];
-                                    if (!fromUser.friends.includes(currentUser.uid)) fromUser.friends
-                                        .push(currentUser.uid);
+                                    if (!fromUser.friends.includes(currentUser.uid)) fromUser.friends.push(currentUser.uid);
                                     await upsertUser(fromUser);
                                 }
                                 await upsertUser(currentUser);
@@ -1478,8 +1396,7 @@
 
             // ---------- 消息发送 ----------
             document.getElementById('sendMsg').addEventListener('click', sendMessage);
-            document.getElementById('messageInput').addEventListener('keypress', (e) => { if (e.key === 'Enter')
-                    sendMessage(); });
+            document.getElementById('messageInput').addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
             async function sendMessage() {
                 const input = document.getElementById('messageInput');
                 const text = input.value.trim();
@@ -1522,8 +1439,7 @@
                     alert('保存失败');
                 }
             });
-            document.getElementById('closeProfile').addEventListener('click', () => document.getElementById('profileModal')
-                .classList.add('hidden'));
+            document.getElementById('closeProfile').addEventListener('click', () => document.getElementById('profileModal').classList.add('hidden'));
 
             // ---------- 管理员面板 ----------
             async function loadAdminPanel() {
@@ -1539,13 +1455,13 @@
                     if (u.uid !== ADMIN_ID) {
                         const status = u.registered ? '已注册' : '未注册';
                         html += `<div style="display:flex; justify-content:space-between; margin:10px 0;">
-                                <span>${u.name || '（未设置）'} (${u.uid}) [${status}]</span>
-                                <div>
-                                    <button class="action-btn" data-login="${u.uid}" ${!u.registered ? 'disabled' : ''}>登录</button>
-                                    <button class="action-btn" data-delete="${u.uid}">注销</button>
-                                    <button class="action-btn" data-grant="${u.uid}" ${!u.registered ? 'disabled' : ''}>授予联系</button>
-                                </div>
-                            </div>`;
+                            <span>${u.name || '（未设置）'} (${u.uid}) [${status}]</span>
+                            <div>
+                                <button class="action-btn" data-login="${u.uid}" ${!u.registered ? 'disabled' : ''}>登录</button>
+                                <button class="action-btn" data-delete="${u.uid}">注销</button>
+                                <button class="action-btn" data-grant="${u.uid}" ${!u.registered ? 'disabled' : ''}>授予联系</button>
+                            </div>
+                        </div>`;
                     }
                 });
                 document.getElementById('userListAdmin').innerHTML = html || '暂无其他用户';
@@ -1557,8 +1473,7 @@
                         if (target && target.registered) {
                             currentUser = target;
                             document.getElementById('adminModal').classList.add('hidden');
-                            const encoded = target.uid === ADMIN_ID ? "0" : encodeId(parseInt(target.uid,
-                            10));
+                            const encoded = target.uid === ADMIN_ID ? "0" : encodeId(parseInt(target.uid, 10));
                             window.history.pushState(null, '', getBasePath() + encoded);
                             renderMainApp();
                         }
@@ -1593,8 +1508,7 @@
                 let reqHtml = '';
                 (contactReqs || []).forEach((req, idx) => {
                     const from = allUsersCache.find(u => u.uid === req.from_uid);
-                    reqHtml +=
-                        `<div>${from ? from.name : req.from_uid} 申请联系 <button class="action-btn" data-accept="${req.id}">同意</button></div>`;
+                    reqHtml += `<div>${from ? from.name : req.from_uid} 申请联系 <button class="action-btn" data-accept="${req.id}">同意</button></div>`;
                 });
                 document.getElementById('pendingContactList').innerHTML = reqHtml || '无';
                 document.querySelectorAll('[data-accept]').forEach(btn => {
@@ -1648,8 +1562,7 @@
             document.getElementById('closeNewUserResult').addEventListener('click', () => {
                 document.getElementById('newUserResultModal').classList.add('hidden');
             });
-            document.getElementById('adminClose').addEventListener('click', () => document.getElementById('adminModal')
-                .classList.add('hidden'));
+            document.getElementById('adminClose').addEventListener('click', () => document.getElementById('adminModal').classList.add('hidden'));
 
             // ---------- 粒子背景 ----------
             (function createParticles() {
@@ -1658,10 +1571,8 @@
                     const p = document.createElement('div');
                     p.className = 'particle';
                     const s = Math.random() * 180 + 40;
-                    p.style.width = s + 'px';
-                    p.style.height = s + 'px';
-                    p.style.left = Math.random() * 100 + '%';
-                    p.style.top = Math.random() * 100 + '%';
+                    p.style.width = s + 'px'; p.style.height = s + 'px';
+                    p.style.left = Math.random() * 100 + '%'; p.style.top = Math.random() * 100 + '%';
                     p.style.animationDuration = (Math.random() * 10 + 8) + 's';
                     p.style.animationDelay = Math.random() * 5 + 's';
                     container.appendChild(p);
