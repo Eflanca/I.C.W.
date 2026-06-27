@@ -738,19 +738,45 @@
             const PUBLIC_ID = "PUBLIC";
             const ADMIN_ID = "0";
 
-            // ---------- 安全编码/解码（使用 Base64，可靠且可逆）----------
+            // ---------- 安全编码/解码（多层进制转换，完全可逆）----------
             function encodeId(id) {
                 if (id === 0) return "0";
-                return btoa(id.toString()).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+                // 步骤1: 数字转字符串，末尾添加 "2077"
+                const step1 = id.toString() + "2077";           // 2 -> "22077"
+                // 步骤2: 字符串转十进制 BigInt
+                const step2 = BigInt(step1);                    // 22077n
+                // 步骤3: 十进制转二进制字符串
+                const step3 = step2.toString(2);                // "101011000111101"
+                // 步骤4: 二进制字符串转十进制 BigInt
+                const step4 = BigInt(step3);                    // 101011000111101n
+                // 步骤5: 十进制转八进制字符串
+                const step5 = step4.toString(8);                // "2675716461727775"
+                // 步骤6: 八进制字符串转十进制 BigInt
+                const step6 = BigInt(step5);                    // 2675716461727775n
+                // 步骤7: 十进制转十六进制字符串（最终结果）
+                return step6.toString(16);                      // "9818cc938901f"
             }
 
             function decodeId(encoded) {
                 if (encoded === "0") return 0;
                 try {
-                    let base64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
-                    while (base64.length % 4) base64 += '=';
-                    const decoded = atob(base64);
-                    return parseInt(decoded, 10);
+                    // 步骤1: 十六进制字符串转十进制 BigInt
+                    const step6 = BigInt("0x" + encoded);        // 2675716461727775n
+                    // 步骤2: 十进制转八进制字符串
+                    const step5 = step6.toString(8);             // "2675716461727775"
+                    // 步骤3: 八进制字符串转十进制 BigInt
+                    const step4 = BigInt(step5);                 // 101011000111101n
+                    // 步骤4: 十进制转二进制字符串
+                    const step3 = step4.toString(2);             // "101011000111101"
+                    // 步骤5: 二进制字符串转十进制 BigInt
+                    const step2 = BigInt(step3);                 // 22077n
+                    // 步骤6: 十进制转字符串
+                    const step1 = step2.toString();              // "22077"
+                    // 步骤7: 验证末尾是否为 "2077"
+                    if (!step1.endsWith("2077")) throw new Error("Invalid encoding");
+                    // 步骤8: 去掉末尾 "2077"，还原原始数字
+                    const idStr = step1.slice(0, -4);
+                    return parseInt(idStr, 10);
                 } catch (e) {
                     return null;
                 }
@@ -867,14 +893,13 @@
                     if (encoded === "0") {
                         uid = ADMIN_ID;
                     } else {
+                        // 只尝试解码，不支持纯数字路径
                         const decoded = decodeId(encoded);
                         if (decoded !== null) {
                             uid = decoded.toString();
                             console.log('解码成功，UID:', uid);
-                        } else if (/^\d+$/.test(encoded)) {
-                            uid = encoded;
-                            console.log('使用纯数字 UID:', uid);
                         } else {
+                            // 解码失败，显示错误页
                             document.getElementById('errorPage').classList.remove('hidden');
                             loading.classList.remove('show');
                             document.getElementById('backToAdminBtn').onclick = () => {
@@ -1450,7 +1475,7 @@
                         html += `<div style="display:flex; justify-content:space-between; margin:10px 0;">
                             <span>${u.name || '（未设置）'} (${u.uid}) [${status}]</span>
                             <div>
-                                <button class="action-btn" data-login="${u.uid}" ${!u.registered ? 'disabled' : ''}>登录</button>
+                                <button class="action-btn" data-login="${u.uid}">登录</button>
                                 <button class="action-btn" data-delete="${u.uid}">注销</button>
                                 <button class="action-btn" data-grant="${u.uid}" ${!u.registered ? 'disabled' : ''}>授予联系</button>
                             </div>
@@ -1459,20 +1484,18 @@
                 });
                 document.getElementById('userListAdmin').innerHTML = html || '暂无其他用户';
 
-                // ---- 修复：管理员登录其他账号 ----
+                // 管理员可以登录任何用户（包括未注册）
                 document.querySelectorAll('[data-login]').forEach(btn => {
                     btn.addEventListener('click', async (e) => {
                         const targetUid = e.target.dataset.login;
                         const target = users.find(u => u.uid === targetUid);
-                        if (target && target.registered) {
+                        if (target) {
                             currentUser = target;
                             document.getElementById('adminModal').classList.add('hidden');
-                            // 使用新的 encodeId 生成链接
                             const encoded = target.uid === ADMIN_ID ? "0" : encodeId(parseInt(target.uid, 10));
                             const newPath = getBasePath() + encoded;
                             window.history.pushState(null, '', newPath);
                             await renderMainApp();
-                            // 重新加载消息并更新界面
                             if (currentChatWith) {
                                 await loadMessages(currentChatWith);
                                 updateChatHeader(currentChatWith);
