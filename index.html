@@ -738,46 +738,48 @@
             const PUBLIC_ID = "PUBLIC";
             const ADMIN_ID = "0";
 
-            // ---------- 安全编码/解码（多层进制转换，完全可逆）----------
+            // ---------- 加密/解密（用户提供的正确版本）----------
             function encodeId(id) {
                 if (id === 0) return "0";
-                // 步骤1: 数字转字符串，末尾添加 "2077"
-                const step1 = id.toString() + "2077";           // 2 -> "22077"
-                // 步骤2: 字符串转十进制 BigInt
-                const step2 = BigInt(step1);                    // 22077n
-                // 步骤3: 十进制转二进制字符串
-                const step3 = step2.toString(2);                // "101011000111101"
-                // 步骤4: 二进制字符串转十进制 BigInt
-                const step4 = BigInt(step3);                    // 101011000111101n
-                // 步骤5: 十进制转八进制字符串
-                const step5 = step4.toString(8);                // "2675716461727775"
-                // 步骤6: 八进制字符串转十进制 BigInt
-                const step6 = BigInt(step5);                    // 2675716461727775n
-                // 步骤7: 十进制转十六进制字符串（最终结果）
-                return step6.toString(16);                      // "9818cc938901f"
+                // Step1：数字拼接盐 2077
+                const step1Str = id.toString() + "2077";
+                const step1Num = BigInt(step1Str);
+
+                // Step2：十进制数字转八进制字符串，再当作新十进制数字
+                const step2OctStr = step1Num.toString(8);
+                const step2Num = BigInt(step2OctStr);
+
+                // Step3：十进制数字转二进制字符串，再当作新十进制数字
+                const step3BinStr = step2Num.toString(2);
+                const step3Num = BigInt(step3BinStr);
+
+                // Step4：十进制数字转十六进制输出
+                const step4HexStr = step3Num.toString(16);
+                return step4HexStr;
             }
 
             function decodeId(encoded) {
                 if (encoded === "0") return 0;
                 try {
-                    // 步骤1: 十六进制字符串转十进制 BigInt
-                    const step6 = BigInt("0x" + encoded);        // 2675716461727775n
-                    // 步骤2: 十进制转八进制字符串
-                    const step5 = step6.toString(8);             // "2675716461727775"
-                    // 步骤3: 八进制字符串转十进制 BigInt
-                    const step4 = BigInt(step5);                 // 101011000111101n
-                    // 步骤4: 十进制转二进制字符串
-                    const step3 = step4.toString(2);             // "101011000111101"
-                    // 步骤5: 二进制字符串转十进制 BigInt
-                    const step2 = BigInt(step3);                 // 22077n
-                    // 步骤6: 十进制转字符串
-                    const step1 = step2.toString();              // "22077"
-                    // 步骤7: 验证末尾是否为 "2077"
-                    if (!step1.endsWith("2077")) throw new Error("Invalid encoding");
-                    // 步骤8: 去掉末尾 "2077"，还原原始数字
-                    const idStr = step1.slice(0, -4);
-                    return parseInt(idStr, 10);
-                } catch (e) {
+                    // Step4 逆：16进制字符串 → 十进制大数（对应step3Num）
+                    const step3Num = BigInt(`0x${encoded}`);
+                    const step3BinStr = step3Num.toString();
+
+                    // Step3 逆：二进制数字字符串 → 八进制大数（对应step2Num）
+                    const step2Num = BigInt(`0b${step3BinStr}`);
+                    const step2OctStr = step2Num.toString();
+
+                    // Step2 逆：八进制数字字符串 → 原始加盐十进制数（step1Num）
+                    const step1Num = BigInt(`0o${step2OctStr}`);
+                    const fullStr = step1Num.toString();
+
+                    // 校验后缀盐 2077
+                    if (!fullStr.endsWith("2077")) return null;
+                    const originStr = fullStr.slice(0, -4);
+                    if (!/^\d+$/.test(originStr)) return null;
+                    return parseInt(originStr, 10);
+                } catch (err) {
+                    console.error("解密错误", err);
                     return null;
                 }
             }
@@ -893,13 +895,11 @@
                     if (encoded === "0") {
                         uid = ADMIN_ID;
                     } else {
-                        // 只尝试解码，不支持纯数字路径
                         const decoded = decodeId(encoded);
                         if (decoded !== null) {
                             uid = decoded.toString();
                             console.log('解码成功，UID:', uid);
                         } else {
-                            // 解码失败，显示错误页
                             document.getElementById('errorPage').classList.remove('hidden');
                             loading.classList.remove('show');
                             document.getElementById('backToAdminBtn').onclick = () => {
@@ -1484,7 +1484,7 @@
                 });
                 document.getElementById('userListAdmin').innerHTML = html || '暂无其他用户';
 
-                // 管理员可以登录任何用户（包括未注册）
+                // 管理员可登录任何用户（包括未注册）
                 document.querySelectorAll('[data-login]').forEach(btn => {
                     btn.addEventListener('click', async (e) => {
                         const targetUid = e.target.dataset.login;
