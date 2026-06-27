@@ -6,7 +6,7 @@
     <title>I.C.W.</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        /* ===== 完整样式 ===== */
+        /* ===== 完整样式（与之前一致） ===== */
         * {
             margin: 0;
             padding: 0;
@@ -727,7 +727,7 @@
     <script>
         (function() {
             // ============================================================
-            //  Supabase 配置 — 已替换为你的新项目信息
+            //  Supabase 配置 — 新项目
             // ============================================================
             const SUPABASE_URL = 'https://rvpqesfwiwceokaphggh.supabase.co';
             const SUPABASE_ANON_KEY = 'sb_publishable_fVBYNNUHyWKZv_VszftKWA_UbN4huVD';
@@ -738,30 +738,22 @@
             const PUBLIC_ID = "PUBLIC";
             const ADMIN_ID = "0";
 
-            // ---------- 安全编码/解码 ----------
+            // ---------- 安全编码/解码（使用 Base64，可靠且可逆）----------
             function encodeId(id) {
                 if (id === 0) return "0";
-                const step1 = id.toString() + "2077";
-                const step2 = BigInt(step1);
-                const step3 = step2.toString(2);
-                const step4 = BigInt(step3);
-                const step5 = step4.toString(8);
-                const step6 = BigInt(step5);
-                return step6.toString(16);
+                // 将数字转为字符串，再用 Base64 编码（URL 安全）
+                return btoa(id.toString()).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
             }
 
             function decodeId(encoded) {
                 if (encoded === "0") return 0;
                 try {
-                    const step6 = BigInt("0x" + encoded);
-                    const step5 = step6.toString(8);
-                    const step4 = BigInt(step5);
-                    const step3 = step4.toString(2);
-                    const step2 = BigInt(step3);
-                    const step1 = step2.toString();
-                    if (!step1.endsWith("2077")) throw new Error("Invalid encoding");
-                    const idStr = step1.slice(0, -4);
-                    return parseInt(idStr, 10);
+                    // 还原 Base64 字符串
+                    let base64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
+                    // 补全等号
+                    while (base64.length % 4) base64 += '=';
+                    const decoded = atob(base64);
+                    return parseInt(decoded, 10);
                 } catch (e) {
                     return null;
                 }
@@ -878,20 +870,29 @@
                     if (encoded === "0") {
                         uid = ADMIN_ID;
                     } else {
+                        // 优先尝试解码
                         const decoded = decodeId(encoded);
-                        if (decoded === null) {
-                            document.getElementById('errorPage').classList.remove('hidden');
-                            loading.classList.remove('show');
-                            document.getElementById('backToAdminBtn').onclick = () => {
-                                window.location.href = getBasePath() + "0";
-                            };
-                            return;
+                        if (decoded !== null) {
+                            uid = decoded.toString();
+                            console.log('解码成功，UID:', uid);
+                        } else {
+                            // 解码失败，检查是否为纯数字（兼容旧链接）
+                            if (/^\d+$/.test(encoded)) {
+                                uid = encoded;
+                                console.log('使用纯数字 UID:', uid);
+                            } else {
+                                // 完全无效
+                                document.getElementById('errorPage').classList.remove('hidden');
+                                loading.classList.remove('show');
+                                document.getElementById('backToAdminBtn').onclick = () => {
+                                    window.location.href = getBasePath() + "0";
+                                };
+                                return;
+                            }
                         }
-                        uid = decoded.toString();
                     }
 
-                    console.log('解码后UID:', uid);
-
+                    console.log('最终 UID:', uid);
                     let user = await fetchUser(uid);
 
                     if (!user && uid === ADMIN_ID) {
@@ -1535,27 +1536,47 @@
                 });
             }
 
+            // 新增用户（使用显式 INSERT + 错误提示）
             document.getElementById('createUserBtn').addEventListener('click', async () => {
+                const name = prompt('请输入新用户的称谓（如：张三）');
+                if (!name) return;
+                const tag = prompt('请输入标签（可选，如：小明）', '') || '';
+
+                // 获取当前最大 uid
                 const users = allUsersCache;
                 let maxId = 0;
                 users.forEach(u => { if (!isNaN(u.uid) && parseInt(u.uid) > maxId) maxId = parseInt(u.uid); });
                 const newUid = (maxId + 1).toString();
+
+                // 构造新用户对象（包含所有必要字段）
                 const newUser = {
                     uid: newUid,
-                    name: '',
-                    tag: '',
+                    name: name,
+                    tag: tag,
                     avatar: '👤',
                     contacts: [],
                     contact_granted: [],
                     friends: [],
                     is_admin: false,
-                    registered: false
+                    registered: true   // 直接注册完成
                 };
-                await upsertUser(newUser);
-                allUsersCache.push(newUser);
+
+                // 使用 supabase insert
+                const { data, error } = await supabase
+                    .from('users')
+                    .insert([newUser]);
+
+                if (error) {
+                    alert('新增用户失败：' + error.message);
+                    console.error(error);
+                    return;
+                }
+
+                // 刷新本地缓存
+                allUsersCache = await fetchAllUsers();
                 const encoded = encodeId(parseInt(newUid, 10));
                 const link = `${window.location.origin}${getBasePath()}${encoded}`;
-                document.getElementById('newUserResult').innerText = `编号: ${newUid}\n编码链接: ${link}`;
+                document.getElementById('newUserResult').innerText = `编号: ${newUid}\n链接: ${link}`;
                 document.getElementById('newUserResultModal').classList.remove('hidden');
             });
 
