@@ -584,7 +584,7 @@
                     <div class="avatar" id="myAvatar">👤</div>
                     <div class="profile-info">
                         <h4 id="myName">用户名</h4>
-                        <p id="myTag">标签</p>
+                        <p id="myTag">备注</p>
                     </div>
                 </div>
                 <div class="contact-list" id="contactList"></div>
@@ -624,7 +624,7 @@
             <h2>📇 首次使用</h2>
             <p>UID: <span id="regUid"></span></p>
             <input type="text" id="regName" class="modal-input" placeholder="输入你的称谓" maxlength="20">
-            <input type="text" id="regTag" class="modal-input" placeholder="标签 (可选)" maxlength="30">
+            <input type="text" id="regTag" class="modal-input" placeholder="备注 (可选)" maxlength="30">
             <div class="modal-buttons">
                 <button class="modal-btn" id="registerConfirm">完成注册</button>
             </div>
@@ -637,7 +637,7 @@
             <h2>个人信息</h2>
             <p>UID: <span id="profileUid"></span></p>
             <input type="text" id="profileName" class="modal-input" placeholder="称谓">
-            <input type="text" id="profileTag" class="modal-input" placeholder="标签">
+            <input type="text" id="profileTag" class="modal-input" placeholder="备注">
             <div class="modal-buttons">
                 <button class="modal-btn" id="saveProfile">保存</button>
                 <button class="modal-btn secondary" id="closeProfile">关闭</button>
@@ -650,7 +650,7 @@
         <div class="modal-card">
             <h2>联系人信息</h2>
             <p>称谓: <span id="contactName"></span></p>
-            <p>标签: <span id="contactTag"></span></p>
+            <p>备注: <span id="contactTag"></span></p>
             <p>UID: <span id="contactUid"></span></p>
             <div class="modal-buttons">
                 <button class="modal-btn secondary" id="closeContactInfo">关闭</button>
@@ -1075,7 +1075,7 @@
                 document.getElementById('headerName').innerText = currentUser.name;
                 document.getElementById('headerUid').innerText = '#' + currentUser.uid;
                 document.getElementById('myName').innerText = currentUser.name;
-                document.getElementById('myTag').innerText = currentUser.tag || '无标签';
+                document.getElementById('myTag').innerText = currentUser.tag || '无备注';
                 document.getElementById('myAvatar').innerText = '👤';
 
                 try {
@@ -1110,7 +1110,7 @@
 
                 if (currentUser.uid !== ADMIN_ID) {
                     html += `
-                        <div class="contact-category">🔷 伊法兰卡</div>
+                        <div class="contact-category">🔷 管理员</div>
                         <div class="contact-item ${currentChatWith === ADMIN_ID ? 'active' : ''}" data-chatid="${ADMIN_ID}" data-type="admin">
                             <div class="contact-avatar">👑</div>
                             <div class="contact-info"><div class="contact-name">伊法兰卡</div></div>
