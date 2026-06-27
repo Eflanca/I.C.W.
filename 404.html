@@ -1475,19 +1475,24 @@
                 users.forEach(u => {
                     if (u.uid !== ADMIN_ID) {
                         const status = u.registered ? '已注册' : '未注册';
+                        // 检查是否已被授予联系权限
+                        const hasContact = (u.contact_granted || []).includes(ADMIN_ID);
                         html += `<div style="display:flex; justify-content:space-between; margin:10px 0;">
                             <span>${u.name || '（未设置）'} (${u.uid}) [${status}]</span>
                             <div>
                                 <button class="action-btn" data-login="${u.uid}">登录</button>
                                 <button class="action-btn" data-delete="${u.uid}">注销</button>
-                                <button class="action-btn" data-grant="${u.uid}" ${!u.registered ? 'disabled' : ''}>授予联系</button>
+                                ${hasContact ? 
+                                    `<button class="action-btn" data-revoke="${u.uid}">解除联系</button>` :
+                                    `<button class="action-btn" data-grant="${u.uid}" ${!u.registered ? 'disabled' : ''}>授予联系</button>`
+                                }
                             </div>
                         </div>`;
                     }
                 });
                 document.getElementById('userListAdmin').innerHTML = html || '暂无其他用户';
-
-                // 管理员可登录任何用户（包括未注册），通过跳转让 startApp 处理注册流程
+            
+                // 登录其他用户（跳转）
                 document.querySelectorAll('[data-login]').forEach(btn => {
                     btn.addEventListener('click', async (e) => {
                         const targetUid = e.target.dataset.login;
@@ -1495,12 +1500,12 @@
                         if (target) {
                             const encoded = target.uid === ADMIN_ID ? "0" : encodeId(parseInt(target.uid, 10));
                             const newPath = getBasePath() + encoded;
-                            // 跳转到该用户链接，让 startApp 统一处理（包括未注册弹出注册界面）
                             window.location.href = newPath;
                         }
                     });
                 });
-
+            
+                // 注销用户
                 document.querySelectorAll('[data-delete]').forEach(btn => {
                     btn.addEventListener('click', async (e) => {
                         const targetUid = e.target.dataset.delete;
@@ -1511,6 +1516,8 @@
                         }
                     });
                 });
+            
+                // 授予联系权限
                 document.querySelectorAll('[data-grant]').forEach(btn => {
                     btn.addEventListener('click', async (e) => {
                         const targetUid = e.target.dataset.grant;
@@ -1521,11 +1528,29 @@
                                 user.contact_granted.push(ADMIN_ID);
                                 await upsertUser(user);
                                 alert('已授予联系权限');
+                                loadAdminPanel(); // 刷新面板
                             }
                         }
                     });
                 });
-
+            
+                // 解除联系权限
+                document.querySelectorAll('[data-revoke]').forEach(btn => {
+                    btn.addEventListener('click', async (e) => {
+                        const targetUid = e.target.dataset.revoke;
+                        const user = users.find(u => u.uid === targetUid);
+                        if (user) {
+                            if (user.contact_granted && user.contact_granted.includes(ADMIN_ID)) {
+                                user.contact_granted = user.contact_granted.filter(id => id !== ADMIN_ID);
+                                await upsertUser(user);
+                                alert('已解除联系权限');
+                                loadAdminPanel(); // 刷新面板
+                            }
+                        }
+                    });
+                });
+            
+                // 待处理联系申请（保持不变）
                 const { data: contactReqs } = await supabase.from('contact_requests').select('*');
                 let reqHtml = '';
                 (contactReqs || []).forEach((req, idx) => {
