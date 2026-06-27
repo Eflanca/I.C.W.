@@ -946,9 +946,11 @@
                     }
 
                     if (!user.registered) {
+                        // 未注册：弹出注册模态
                         document.getElementById('regUid').innerText = uid;
                         document.getElementById('registerModal').classList.remove('hidden');
                         loading.classList.remove('show');
+                        // 注册确认事件
                         document.getElementById('registerConfirm').onclick = async () => {
                             const name = document.getElementById('regName').value.trim();
                             if (!name) { alert('称谓不能为空'); return; }
@@ -979,6 +981,7 @@
                             }
                         };
                     } else {
+                        // 已注册：直接登录
                         if (uid === ADMIN_ID) {
                             if (sessionStorage.getItem('icw_admin_final') === 'true') {
                                 currentUser = user;
@@ -1484,22 +1487,16 @@
                 });
                 document.getElementById('userListAdmin').innerHTML = html || '暂无其他用户';
 
-                // 管理员可登录任何用户（包括未注册）
+                // 管理员可登录任何用户（包括未注册），通过跳转让 startApp 处理注册流程
                 document.querySelectorAll('[data-login]').forEach(btn => {
                     btn.addEventListener('click', async (e) => {
                         const targetUid = e.target.dataset.login;
                         const target = users.find(u => u.uid === targetUid);
                         if (target) {
-                            currentUser = target;
-                            document.getElementById('adminModal').classList.add('hidden');
                             const encoded = target.uid === ADMIN_ID ? "0" : encodeId(parseInt(target.uid, 10));
                             const newPath = getBasePath() + encoded;
-                            window.history.pushState(null, '', newPath);
-                            await renderMainApp();
-                            if (currentChatWith) {
-                                await loadMessages(currentChatWith);
-                                updateChatHeader(currentChatWith);
-                            }
+                            // 跳转到该用户链接，让 startApp 统一处理（包括未注册弹出注册界面）
+                            window.location.href = newPath;
                         }
                     });
                 });
